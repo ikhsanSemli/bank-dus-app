@@ -112,9 +112,12 @@ function App() {
     } catch (err) { alert(err.message); }
   };
 
+  // --- LOGIKA KIAMAT STOK ---
+  const sisaStokFisik = stokTotal - stokKeluar;
+  const sisaHari = Math.floor(sisaStokFisik / 810);
+
   return (
     <div style={styles.container}>
-      {/* QUOTE MELAYANG */}
       <motion.div 
         animate={{ y: [0, -5, 0] }} 
         transition={{ repeat: Infinity, duration: 3 }}
@@ -156,22 +159,13 @@ function App() {
                 .sort((a, b) => b.rakitTotal - a.rakitTotal)
                 .map((orang, index) => {
                   let medali = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "👤";
-                  
-                  // --- LOGIKA GELAR ANTI GAGAL ---
                   const d = Number(orang.rakitTotal) || 0; 
                   let gelarTeks = "🌱 CALON JURAGAN";
                   let warnaGelar = "#8B4513";
 
-                  if (d >= 3000) {
-                    gelarTeks = "👑 KELAZZ KING";
-                    warnaGelar = "#FF8C00";
-                  } else if (d >= 2000) { 
-                    gelarTeks = "⚔️ PANGLIMA RAKIT";
-                    warnaGelar = "#E64A19";
-                  } else if (d >= 1000) {
-                    gelarTeks = "💪 PEJUANG KARDUS";
-                    warnaGelar = "#2E7D32";
-                  }
+                  if (d >= 3000) { gelarTeks = "👑 KELAZZ KING"; warnaGelar = "#FF8C00"; } 
+                  else if (d >= 2000) { gelarTeks = "⚔️ PANGLIMA RAKIT"; warnaGelar = "#E64A19"; } 
+                  else if (d >= 1000) { gelarTeks = "💪 PEJUANG KARDUS"; warnaGelar = "#2E7D32"; }
 
                   return (
                     <motion.div 
@@ -190,12 +184,8 @@ function App() {
                         <div style={{ textAlign: 'left' }}>
                           <div style={{ fontWeight: 'bold', color: '#5D4037', fontSize: '1.1rem' }}>{orang.nama}</div>
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '0.8rem', color: '#A0522D', fontWeight: 'bold' }}>
-                              🔥 {orang.rakitTotal} Dus
-                            </span>
-                            <span style={{ fontSize: '0.65rem', color: warnaGelar, fontWeight: '900', marginTop: '2px' }}>
-                              {gelarTeks}
-                            </span>
+                            <span style={{ fontSize: '0.8rem', color: '#A0522D', fontWeight: 'bold' }}>🔥 {orang.rakitTotal} Dus</span>
+                            <span style={{ fontSize: '0.65rem', color: warnaGelar, fontWeight: '900', marginTop: '2px' }}>{gelarTeks}</span>
                           </div>
                         </div>
                       </div>
@@ -212,10 +202,64 @@ function App() {
         ) : (
           <motion.div key="log" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} style={styles.fullWidth}>
             <h1 style={{...styles.title, color: '#2E7D32'}}>🚛 LOGISTIK GUDANG</h1>
-            <div style={{...styles.cardStok, backgroundColor: '#4CAF50', borderColor: '#2E7D32'}}>
+            <div style={{...styles.cardStok, backgroundColor: '#4CAF50', borderColor: '#2E7D32', position: 'relative'}}>
               <h2 style={{ margin: 0, fontSize: '0.9rem', opacity: 0.8 }}>STOK FISIK REAL</h2>
-              <div style={styles.numberStok}>{loading ? "..." : (stokTotal - stokKeluar)}</div>
-              <p style={{fontSize: '0.8rem', marginTop: 5}}>Masuk: {stokTotal} | Keluar: {stokKeluar}</p>
+              <div style={styles.numberStok}>{loading ? "..." : sisaStokFisik}</div>
+              
+              {/* --- ALAT PENGHITUNG MUNDUR KIAMAT STOK --- */}
+              {/* --- ALAT PENGHITUNG MUNDUR KIAMAT STOK --- */}
+{!loading && (() => {
+  const sisaHari = Math.floor(sisaStokFisik / 810);
+  let statusKiamat = "✅ STOK AMAN";
+  let warnaKiamat = "#FFFFFF";
+  let efekGlow = "none";
+  let backgroundKiamat = "rgba(0,0,0,0.15)";
+
+  if (sisaHari <= 0) {
+    statusKiamat = "💀 KIAMAT SUDAH TIBA!";
+    warnaKiamat = "#FFFFFF";
+    backgroundKiamat = "#FF0000"; // Background merah full
+    efekGlow = "0 0 20px #FF0000";
+  } else if (sisaHari <= 2) {
+    statusKiamat = "🆘 SEGERA KIAMAT!";
+    warnaKiamat = "#FF5252";
+    efekGlow = "0 0 10px rgba(255,82,82,0.8)";
+  } else if (sisaHari <= 5) {
+    statusKiamat = "⚠️ STOK MULAI TIPIS";
+    warnaKiamat = "#FFD700"; // Kuning emas
+  }
+
+  return (
+    <motion.div 
+      animate={sisaHari <= 2 ? { scale: [1, 1.05, 1] } : {}}
+      transition={{ repeat: Infinity, duration: 1 }}
+      style={{
+        marginTop: '15px',
+        padding: '12px',
+        backgroundColor: backgroundKiamat,
+        borderRadius: '15px',
+        border: '1px dashed white',
+        transition: 'all 0.5s ease'
+      }}
+    >
+      <div style={{fontSize: '0.7rem', fontWeight: 'bold', letterSpacing: '1px'}}>🕒 STATUS KIAMAT GUDANG</div>
+      <div style={{
+        fontSize: '1.4rem', 
+        fontWeight: '900', 
+        color: warnaKiamat,
+        textShadow: efekGlow
+      }}>
+        {sisaHari <= 0 ? statusKiamat : `${sisaHari} HARI LAGI`}
+      </div>
+      <div style={{fontSize: '0.8rem', fontWeight: 'bold', color: warnaKiamat, marginTop: '2px'}}>
+        {sisaHari > 0 && statusKiamat}
+      </div>
+      <div style={{fontSize: '0.6rem', opacity: 0.8, marginTop: '5px'}}>(Asumsi 27 Kantong/Hari)</div>
+    </motion.div>
+  );
+})()}
+              
+              <p style={{fontSize: '0.8rem', marginTop: 10}}>Masuk: {stokTotal} | Keluar: {stokKeluar}</p>
             </div>
 
             <div style={{...styles.formContainer, border: '3px dashed #2E7D32'}}>
