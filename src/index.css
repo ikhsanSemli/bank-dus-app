@@ -1,0 +1,19 @@
+/* Menghapus margin bawaan browser dan memastikan konten ke tengah */
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  background-color: #FFF8DC; /* Warna krem biar nggak ada putih di pinggir */
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center; /* Ini kunci buat naruh di tengah layar */
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%; /* Memastikan aplikasi React pakai lebar penuh layar */
+  margin: 0 auto;
+  text-align: center;
+}
