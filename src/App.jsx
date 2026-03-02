@@ -9,7 +9,7 @@ import { supabase } from './lib/supabaseClient'
 const quotes = [
   "Rakit terus sampe mampus! 💸",
   "Kardus dirakit, cuan selangit! 🚀",
-  "Jangan biarkan supir menunggu, dia juga punya perasaan. 🚛",
+  "Jangan biarkan doi menunggu, dia juga punya perasaan. 🚛",
   "Satu colly sejuta cerita, dua colly naik kasta! ✨",
   "Lelah boleh, menyerah jangan. Inget cicilan! 😜",
   "Merakit dus adalah jalan ninja kita. 🥷"
@@ -201,7 +201,7 @@ function App() {
           </motion.div>
         ) : (
           <motion.div key="log" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} style={styles.fullWidth}>
-            <h1 style={{...styles.title, color: '#2E7D32'}}>🚛 LOGISTIK GUDANG</h1>
+            <h1 style={{...styles.title, color: '#2E7D32'}}>🚛 LOGISTIK DUS</h1>
             <div style={{...styles.cardStok, backgroundColor: '#4CAF50', borderColor: '#2E7D32', position: 'relative'}}>
               <h2 style={{ margin: 0, fontSize: '0.9rem', opacity: 0.8 }}>STOK FISIK REAL</h2>
               <div style={styles.numberStok}>{loading ? "..." : sisaStokFisik}</div>
