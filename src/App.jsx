@@ -242,7 +242,7 @@ function App() {
         transition: 'all 0.5s ease'
       }}
     >
-      <div style={{fontSize: '0.7rem', fontWeight: 'bold', letterSpacing: '1px'}}>🕒 STATUS KIAMAT GUDANG</div>
+      <div style={{fontSize: '0.7rem', fontWeight: 'bold', letterSpacing: '1px'}}>🕒 STATUS KIAMAT DUS</div>
       <div style={{
         fontSize: '1.4rem', 
         fontWeight: '900', 
