@@ -134,7 +134,7 @@ function App() {
       <AnimatePresence mode="wait">
         {view === "banking" ? (
           <motion.div key="bank" initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 20, opacity: 0 }} style={styles.fullWidth}>
-            <h1 style={styles.title}>📦 DUSMUDUSKU</h1>
+            <h1 style={styles.title}>📦 ISTANA KERDUS</h1>
             <div style={styles.cardStok}>
               <h2 style={{ margin: 0, fontSize: '0.9rem', opacity: 0.8 }}>TOTAL DEPOSITO NASABAH</h2>
               <div style={styles.numberStok}>{loading ? "..." : stokTotal}</div>
