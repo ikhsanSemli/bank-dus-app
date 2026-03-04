@@ -74,6 +74,7 @@ function App() {
     if (collyNum > 5 && !window.confirm(`⚠️ Input ${collyNum} Colly?`)) return;
 
     try {
+      // 1. Dapatkan/Cari User ID
       let { data: user } = await supabase.from('nasabah').select('id').ilike('nama', namaClean).maybeSingle();
       let userId = user?.id;
 
@@ -83,12 +84,47 @@ function App() {
         userId = newUser.id;
       }
 
-      await supabase.from('transaksi_gudang').insert([{
-        nasabah_id: userId, shift: inputShift, colly: collyNum,
-        rakit_gross: collyNum * 200, deposito_nett: (collyNum * 200) - (inputShift === "Middle" ? 400 : 200)
+      // 2. LOGIKA CEK SETORAN HARI INI (Agar tidak double potong)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const { data: checkSetoran } = await supabase
+        .from('transaksi_gudang')
+        .select('id')
+        .eq('nasabah_id', userId)
+        .gte('created_at', today.toISOString())
+        .lt('created_at', tomorrow.toISOString());
+
+      const isFirstSetoranToday = checkSetoran.length === 0;
+
+      // 3. Kalkulasi (Potongan hanya jika setoran pertama hari ini)
+      const gross = collyNum * 200;
+      let potongan = 0;
+      if (isFirstSetoranToday) {
+        potongan = (inputShift === "Middle" ? 400 : 200);
+      }
+      const nett = gross - potongan;
+
+      // 4. Input ke Database
+      const { error } = await supabase.from('transaksi_gudang').insert([{
+        nasabah_id: userId, 
+        shift: inputShift, 
+        colly: collyNum,
+        rakit_gross: gross, 
+        deposito_nett: nett
       }]);
 
+      if (error) throw error;
+
       playSetor();
+      if (!isFirstSetoranToday) {
+        alert("✅ Setoran Tambahan Berhasil! (Tanpa potongan biaya harian)");
+      } else {
+        alert("✅ Setoran Pertama Hari Ini Berhasil! (Biaya admin dipotong)");
+      }
+      
       setInputNama(""); setInputColly("");
       fetchData();
     } catch (err) { alert(err.message); }
@@ -114,7 +150,6 @@ function App() {
 
   // --- LOGIKA KIAMAT STOK ---
   const sisaStokFisik = stokTotal - stokKeluar;
-  const sisaHari = Math.floor(sisaStokFisik / 810);
 
   return (
     <div style={styles.container}>
@@ -134,7 +169,7 @@ function App() {
       <AnimatePresence mode="wait">
         {view === "banking" ? (
           <motion.div key="bank" initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 20, opacity: 0 }} style={styles.fullWidth}>
-            <h1 style={styles.title}>📦 DUSMUdusKU</h1>
+            <h1 style={styles.title}>📦 ISTANA KARDUS</h1>
             <div style={styles.cardStok}>
               <h2 style={{ margin: 0, fontSize: '0.9rem', opacity: 0.8 }}>TOTAL DEPOSITO NASABAH</h2>
               <div style={styles.numberStok}>{loading ? "..." : stokTotal}</div>
@@ -206,58 +241,56 @@ function App() {
               <h2 style={{ margin: 0, fontSize: '0.9rem', opacity: 0.8 }}>STOK FISIK REAL</h2>
               <div style={styles.numberStok}>{loading ? "..." : sisaStokFisik}</div>
               
-              {/* --- ALAT PENGHITUNG MUNDUR KIAMAT STOK --- */}
-              {/* --- ALAT PENGHITUNG MUNDUR KIAMAT STOK --- */}
-{!loading && (() => {
-  const sisaHari = Math.floor(sisaStokFisik / 810);
-  let statusKiamat = "✅ STOK AMAN";
-  let warnaKiamat = "#FFFFFF";
-  let efekGlow = "none";
-  let backgroundKiamat = "rgba(0,0,0,0.15)";
+              {!loading && (() => {
+                const sisaHari = Math.floor(sisaStokFisik / 810);
+                let statusKiamat = "✅ STOK AMAN";
+                let warnaKiamat = "#FFFFFF";
+                let efekGlow = "none";
+                let backgroundKiamat = "rgba(0,0,0,0.15)";
 
-  if (sisaHari <= 0) {
-    statusKiamat = "💀 KIAMAT SUDAH TIBA!";
-    warnaKiamat = "#FFFFFF";
-    backgroundKiamat = "#FF0000"; // Background merah full
-    efekGlow = "0 0 20px #FF0000";
-  } else if (sisaHari <= 2) {
-    statusKiamat = "🆘 SEGERA KIAMAT!";
-    warnaKiamat = "#FF5252";
-    efekGlow = "0 0 10px rgba(255,82,82,0.8)";
-  } else if (sisaHari <= 5) {
-    statusKiamat = "⚠️ STOK MULAI TIPIS";
-    warnaKiamat = "#FFD700"; // Kuning emas
-  }
+                if (sisaHari <= 0) {
+                  statusKiamat = "💀 KIAMAT SUDAH TIBA!";
+                  warnaKiamat = "#FFFFFF";
+                  backgroundKiamat = "#FF0000"; 
+                  efekGlow = "0 0 20px #FF0000";
+                } else if (sisaHari <= 2) {
+                  statusKiamat = "🆘 SEGERA KIAMAT!";
+                  warnaKiamat = "#FF5252";
+                  efekGlow = "0 0 10px rgba(255,82,82,0.8)";
+                } else if (sisaHari <= 5) {
+                  statusKiamat = "⚠️ STOK MULAI TIPIS";
+                  warnaKiamat = "#FFD700"; 
+                }
 
-  return (
-    <motion.div 
-      animate={sisaHari <= 2 ? { scale: [1, 1.05, 1] } : {}}
-      transition={{ repeat: Infinity, duration: 1 }}
-      style={{
-        marginTop: '15px',
-        padding: '12px',
-        backgroundColor: backgroundKiamat,
-        borderRadius: '15px',
-        border: '1px dashed white',
-        transition: 'all 0.5s ease'
-      }}
-    >
-      <div style={{fontSize: '0.7rem', fontWeight: 'bold', letterSpacing: '1px'}}>🕒 STATUS KIAMAT DUS</div>
-      <div style={{
-        fontSize: '1.4rem', 
-        fontWeight: '900', 
-        color: warnaKiamat,
-        textShadow: efekGlow
-      }}>
-        {sisaHari <= 0 ? statusKiamat : `${sisaHari} HARI LAGI`}
-      </div>
-      <div style={{fontSize: '0.8rem', fontWeight: 'bold', color: warnaKiamat, marginTop: '2px'}}>
-        {sisaHari > 0 && statusKiamat}
-      </div>
-      <div style={{fontSize: '0.6rem', opacity: 0.8, marginTop: '5px'}}>(Asumsi 27 Kantong/Hari)</div>
-    </motion.div>
-  );
-})()}
+                return (
+                  <motion.div 
+                    animate={sisaHari <= 2 ? { scale: [1, 1.05, 1] } : {}}
+                    transition={{ repeat: Infinity, duration: 1 }}
+                    style={{
+                      marginTop: '15px',
+                      padding: '12px',
+                      backgroundColor: backgroundKiamat,
+                      borderRadius: '15px',
+                      border: '1px dashed white',
+                      transition: 'all 0.5s ease'
+                    }}
+                  >
+                    <div style={{fontSize: '0.7rem', fontWeight: 'bold', letterSpacing: '1px'}}>🕒 STATUS KIAMAT DUS</div>
+                    <div style={{
+                      fontSize: '1.4rem', 
+                      fontWeight: '900', 
+                      color: warnaKiamat,
+                      textShadow: efekGlow
+                    }}>
+                      {sisaHari <= 0 ? statusKiamat : `${sisaHari} HARI LAGI`}
+                    </div>
+                    <div style={{fontSize: '0.8rem', fontWeight: 'bold', color: warnaKiamat, marginTop: '2px'}}>
+                      {sisaHari > 0 && statusKiamat}
+                    </div>
+                    <div style={{fontSize: '0.6rem', opacity: 0.8, marginTop: '5px'}}>(Asumsi 27 Kantong/Hari)</div>
+                  </motion.div>
+                );
+              })()}
               
               <p style={{fontSize: '0.8rem', marginTop: 10}}>Masuk: {stokTotal} | Keluar: {stokKeluar}</p>
             </div>
