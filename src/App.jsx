@@ -80,7 +80,15 @@ function App() {
       return;
     }
 
-    if (collyNum > 5 && !window.confirm(`⚠️ Input ${collyNum} Colly?`)) return;
+    // --- LOGIKA PENGADANG SALAH INPUT PCS ---
+    if (collyNum >= 5) {
+      alert(`🚫 WADUH! Kamu input ${collyNum} Colly? \n\nKayaknya kamu salah input jumlah PCS DUS ke kolom COLLY deh. \nIngat: 1 Colly = 200 Dus.`);
+      return;
+    }
+
+    if (collyNum > 5 && !window.confirm(`⚠️ Yakin input ${collyNum} Colly? (${collyNum * 200} Dus)`)) return;
+
+    // ... sisa kode ke bawah tetap sama
 
     try {
       const namaClean = namaRaw.charAt(0).toUpperCase() + namaRaw.slice(1).toLowerCase();
