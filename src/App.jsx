@@ -202,7 +202,17 @@ function App() {
 
             <div style={styles.leaderboardContainer}>
               <h3 style={{ textAlign: 'center', color: '#8B4513' }}>🏆 KASTA PERAKIT</h3>
-              {nasabah.filter(orang => orang.nama !== "SISTEM").sort((a, b) => b.rakitTotal - a.rakitTotal).map((orang, index) => (
+              {nasabah
+                .filter(orang => orang.nama !== "SISTEM")
+                .sort((a, b) => {
+                  // 1. Cek dulu total rakitannya
+                  if (b.rakitTotal !== a.rakitTotal) {
+                    return b.rakitTotal - a.rakitTotal;
+                  }
+                  // 2. Kalau jumlah rakitannya SAMA, baru diadu siapa yang tabungannya (deposito) lebih banyak
+                  return b.deposito - a.deposito;
+                })
+              .map((orang, index) => (
                 <div key={orang.id} style={{...styles.labelNasabah, borderColor: index === 0 ? "#FFD700" : "#D2B48C", backgroundColor: index === 0 ? "#FFFDE7" : "white"}}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                     <span style={{ fontSize: '1.5rem' }}>{index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "👤"}</span>
