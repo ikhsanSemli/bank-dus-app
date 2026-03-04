@@ -161,6 +161,13 @@ function App() {
 
   const sisaStokFisik = stokTotal - stokKeluar;
 
+const dapatkanGelar = (total) => {
+  if (total >= 5000) return { teks: "SULTAN KARDUS 👑", warna: "#FFD700" };
+  if (total >= 2000) return { teks: "JURAGAN DUS 💎", warna: "#C0C0C0" };
+  if (total >= 1000) return { teks: "JAWARA RAKIT 🔥", warna: "#CD7F32" };
+  return { teks: "WARGA BIASA 🌱", warna: "#8BC34A" };
+};
+
   return (
     <div style={styles.container}>
       <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 3 }} style={styles.quoteBox}>
@@ -205,25 +212,31 @@ function App() {
               {nasabah
                 .filter(orang => orang.nama !== "SISTEM")
                 .sort((a, b) => {
-                  // 1. Cek dulu total rakitannya
-                  if (b.rakitTotal !== a.rakitTotal) {
-                    return b.rakitTotal - a.rakitTotal;
-                  }
-                  // 2. Kalau jumlah rakitannya SAMA, baru diadu siapa yang tabungannya (deposito) lebih banyak
+                  if (b.rakitTotal !== a.rakitTotal) return b.rakitTotal - a.rakitTotal;
                   return b.deposito - a.deposito;
                 })
-              .map((orang, index) => (
-                <div key={orang.id} style={{...styles.labelNasabah, borderColor: index === 0 ? "#FFD700" : "#D2B48C", backgroundColor: index === 0 ? "#FFFDE7" : "white"}}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                    <span style={{ fontSize: '1.5rem' }}>{index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "👤"}</span>
-                    <div style={{ textAlign: 'left' }}>
-                      <div style={{ fontWeight: 'bold', color: '#5D4037' }}>{orang.nama}</div>
-                      <span style={{ fontSize: '0.8rem', color: '#A0522D' }}>🔥 {orang.rakitTotal} Dus</span>
+                .map((orang, index) => {
+                  const gelar = dapatkanGelar(orang.rakitTotal); // Panggil fungsi gelar
+                  
+                  return (
+                    <div key={orang.id} style={{...styles.labelNasabah, borderColor: index === 0 ? "#FFD700" : "#D2B48C"}}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <span style={{ fontSize: '1.5rem' }}>{index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "👤"}</span>
+                        <div style={{ textAlign: 'left' }}>
+                          <div style={{ fontWeight: 'bold', color: '#5D4037' }}>{orang.nama}</div>
+                          {/* TAMPILAN GELAR DI SINI */}
+                          <div style={{ fontSize: '0.65rem', fontWeight: '900', color: gelar.warna, letterSpacing: '1px' }}>
+                            {gelar.teks}
+                          </div>
+                          <span style={{ fontSize: '0.8rem', color: '#A0522D' }}>🔥 {orang.rakitTotal} Dus</span>
+                        </div>
+                      </div>
+                      <div style={styles.badgeDeposito}>{orang.deposito}</div>
                     </div>
-                  </div>
-                  <div style={styles.badgeDeposito}>{orang.deposito}</div>
-                </div>
-              ))}
+                  );
+                })
+              }
+              
             </div>
           </motion.div>
         ) : (
