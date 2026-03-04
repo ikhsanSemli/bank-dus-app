@@ -162,10 +162,17 @@ function App() {
   const sisaStokFisik = stokTotal - stokKeluar;
 
 const dapatkanGelar = (total) => {
-  if (total >= 5000) return { teks: "SULTAN KARDUS 👑", warna: "#FFD700" };
-  if (total >= 2000) return { teks: "JURAGAN DUS 💎", warna: "#C0C0C0" };
-  if (total >= 1000) return { teks: "JAWARA RAKIT 🔥", warna: "#CD7F32" };
-  return { teks: "WARGA BIASA 🌱", warna: "#8BC34A" };
+  if (total >= 5000) return { teks: "DEWA KARDUS SEMESTA 🌌", warna: "#4A148C" }; // Ungu Deep
+  if (total >= 4500) return { teks: "KAISAR DUS ABADI 👑", warna: "#B71C1C" };    // Merah Darah
+  if (total >= 4000) return { teks: "SULTAN ELITE 💎", warna: "#0D47A1" };       // Biru Royal
+  if (total >= 3500) return { teks: "LEGEND RAKIT 🏆", warna: "#E65100" };       // Oranye Gelap
+  if (total >= 3000) return { teks: "PENGUASA GUDANG 🏰", warna: "#004D40" };     // Hijau Botol
+  if (total >= 2500) return { teks: "JURAGAN KAYA 💸", warna: "#2E7D32" };       // Hijau Duit
+  if (total >= 2000) return { teks: "JAWARA PRO 🦾", warna: "#37474F" };         // Abu Metalik
+  if (total >= 1500) return { teks: "PENDEKAR DUS ⚔️", warna: "#5D4037" };       // Cokelat Tua
+  if (total >= 1000) return { teks: "SPESIALIS RAKIT ✨", warna: "#00838F" };     // Teal
+  if (total >= 500)  return { teks: "PERAKIT AMBICIUS 🚀", warna: "#F9A825" };    // Kuning Mustard
+  return { teks: "WARGA RAJIN 🌱", warna: "#8BC34A" };                            // Hijau Muda
 };
 
   return (
