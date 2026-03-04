@@ -94,8 +94,8 @@ function App() {
   .from('transaksi_gudang')
   .select('id')
   .eq('nasabah_id', userId)
-  .gte('created_at', today.toISOString())
-  .lt('created_at', tomorrow.toISOString());
+  .gte('tanggal', today.toISOString())
+  .lt('tanggal', tomorrow.toISOString());
 
 if (checkError) throw checkError;
 
