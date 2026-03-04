@@ -90,14 +90,16 @@ function App() {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const { data: checkSetoran } = await supabase
-        .from('transaksi_gudang')
-        .select('id')
-        .eq('nasabah_id', userId)
-        .gte('created_at', today.toISOString())
-        .lt('created_at', tomorrow.toISOString());
+        const { data: checkSetoran, error: checkError } = await supabase
+  .from('transaksi_gudang')
+  .select('id')
+  .eq('nasabah_id', userId)
+  .gte('created_at', today.toISOString())
+  .lt('created_at', tomorrow.toISOString());
 
-      const isFirstSetoranToday = checkSetoran.length === 0;
+if (checkError) throw checkError;
+
+      const isFirstSetoranToday = (checkSetoran || []).length === 0;
 
       // 3. Kalkulasi (Potongan hanya jika setoran pertama hari ini)
       const gross = collyNum * 200;
