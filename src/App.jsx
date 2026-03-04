@@ -17,8 +17,9 @@ const quotes = [
 function App() {
   // --- STATE UTAMA ---
   const [view, setView] = useState("banking");
-  const [stokTotal, setStokTotal] = useState(0); // Untuk Logistik (Termasuk SISTEM)
-  const [stokManusia, setStokManusia] = useState(0); // Murni Tabungan Nasabah
+  const [stokTotal, setStokTotal] = useState(0); 
+  const [stokManusia, setStokManusia] = useState(0); 
+  const [stokBahanColly, setStokBahanColly] = useState(0); // Sisa bahan mentah
   const [stokKeluar, setStokKeluar] = useState(0);
   const [nasabah, setNasabah] = useState([]); 
   const [logistikList, setLogistikList] = useState([]);
@@ -39,28 +40,40 @@ function App() {
 
   const fetchData = async () => {
     setLoading(true);
-    const { data: nData } = await supabase.from('nasabah').select(`id, nama, transaksi_gudang (rakit_gross, deposito_nett)`);
+    // Ambil Nasabah, Logistik, dan Stok Bahan Mentah
+    const { data: nData } = await supabase.from('nasabah').select(`id, nama, transaksi_gudang (rakit_gross, deposito_nett, colly)`);
     const { data: lData } = await supabase.from('logistik_keluar').select('*').order('created_at', { ascending: false });
+    const { data: bData } = await supabase.from('stok_bahan').select('jumlah_masuk');
 
     if (nData) {
       const formatted = nData.map(n => ({
         id: n.id,
         nama: n.nama,
         rakitTotal: n.transaksi_gudang.reduce((sum, t) => sum + t.rakit_gross, 0),
-        deposito: n.transaksi_gudang.reduce((sum, t) => sum + t.deposito_nett, 0)
+        deposito: n.transaksi_gudang.reduce((sum, t) => sum + t.deposito_nett, 0),
+        collyTotal: n.transaksi_gudang.reduce((sum, t) => sum + t.colly, 0)
       }));
 
-      // Pisahkan stok murni manusia dan total (termasuk akun SISTEM)
+      // 1. Hitung Total Deposito Murni (Bukan SISTEM)
       const totalMurni = formatted
         .filter(n => n.nama !== "SISTEM")
         .reduce((sum, n) => sum + n.deposito, 0);
       
+      // 2. Hitung Total Semua (Untuk Logistik)
       const totalSemua = formatted.reduce((sum, n) => sum + n.deposito, 0);
+
+      // 3. Hitung Sisa Bahan Mentah (Stok Bahan Masuk - Colly yang sudah dirakit)
+      const totalCollyTerpakai = formatted
+        .filter(n => n.nama !== "SISTEM")
+        .reduce((sum, n) => sum + n.collyTotal, 0);
+      const totalBahanMasuk = bData ? bData.reduce((sum, b) => sum + b.jumlah_masuk, 0) : 0;
 
       setNasabah(formatted);
       setStokManusia(totalMurni); 
       setStokTotal(totalSemua); 
+      setStokBahanColly(totalBahanMasuk - totalCollyTerpakai);
     }
+    
     if (lData) {
       setLogistikList(lData);
       setStokKeluar(lData.reduce((sum, l) => sum + l.jumlah_keluar, 0));
@@ -80,15 +93,11 @@ function App() {
       return;
     }
 
-    // --- LOGIKA PENGADANG SALAH INPUT PCS ---
-    if (collyNum >= 5) {
-      alert(`🚫 WADUH! Kamu input ${collyNum} Colly? \n\nKayaknya kamu salah input jumlah PCS DUS ke kolom COLLY deh. \nIngat: 1 Colly = 200 Dus.`);
+    // SAFE GUARD: Mencegah input PCS ke kolom COLLY
+    if (collyNum >= 50) {
+      alert(`🚫 INPUT DITOLAK!\n\nKamu input ${collyNum} Colly? Kayaknya kamu salah input jumlah PCS DUS ke kolom COLLY.\n\nIngat: 1 Colly = 200 Dus.`);
       return;
     }
-
-    if (collyNum > 5 && !window.confirm(`⚠️ Yakin input ${collyNum} Colly? (${collyNum * 200} Dus)`)) return;
-
-    // ... sisa kode ke bawah tetap sama
 
     try {
       const namaClean = namaRaw.charAt(0).toUpperCase() + namaRaw.slice(1).toLowerCase();
@@ -105,37 +114,24 @@ function App() {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const { data: checkSetoran, error: checkError } = await supabase
-        .from('transaksi_gudang')
-        .select('id')
-        .eq('nasabah_id', userId)
-        .gte('tanggal', today.toISOString())
-        .lt('tanggal', tomorrow.toISOString());
+      const { data: checkSetoran } = await supabase.from('transaksi_gudang')
+        .select('id').eq('nasabah_id', userId)
+        .gte('tanggal', today.toISOString()).lt('tanggal', tomorrow.toISOString());
 
-      if (checkError) throw checkError;
       const isFirstSetoranToday = (checkSetoran || []).length === 0;
-
       const gross = collyNum * 200;
-      let potongan = 0;
-      if (isFirstSetoranToday) {
-        potongan = (inputShift === "Middle" ? 400 : 200);
-      }
+      let potongan = isFirstSetoranToday ? (inputShift === "Middle" ? 400 : 200) : 0;
       const nett = gross - potongan;
 
       const { error } = await supabase.from('transaksi_gudang').insert([{
-        nasabah_id: userId, 
-        shift: inputShift, 
-        colly: collyNum,
-        rakit_gross: gross, 
-        deposito_nett: nett
+        nasabah_id: userId, shift: inputShift, colly: collyNum,
+        rakit_gross: gross, deposito_nett: nett
       }]);
 
       if (error) throw error;
       playSetor();
       alert(isFirstSetoranToday ? "✅ Setoran Pertama Berhasil!" : "✅ Setoran Tambahan Berhasil!");
-      
-      setInputNama(""); setInputColly("");
-      fetchData();
+      setInputNama(""); setInputColly(""); fetchData();
     } catch (err) { alert(err.message); }
   };
 
@@ -144,22 +140,16 @@ function App() {
     const supirRaw = supir.trim();
     if (!supirRaw || !jumlahKeluar) return alert("Isi nama supir & jumlah kantong!");
     
-    // Cleaning Nama Supir
     const supirClean = supirRaw.charAt(0).toUpperCase() + supirRaw.slice(1).toLowerCase();
     const totalDusKeluar = parseInt(jumlahKeluar) * 30;
 
     try {
       const { error } = await supabase.from('logistik_keluar').insert([{
-        nama_supir: supirClean,
-        shift: shiftSupir, 
-        jumlah_keluar: totalDusKeluar, 
-        keterangan: `${jumlahKeluar} Kantong`
+        nama_supir: supirClean, shift: shiftSupir, 
+        jumlah_keluar: totalDusKeluar, keterangan: `${jumlahKeluar} Kantong`
       }]);
       if (error) throw error;
-      
-      playTruk(); 
-      setSupir(""); setInputColly(""); setJumlahKeluar("");
-      fetchData();
+      playTruk(); setSupir(""); setJumlahKeluar(""); fetchData();
       alert(`🚛 TELOLET!! ${jumlahKeluar} Kantong Meluncur!`);
     } catch (err) { alert(err.message); }
   };
@@ -181,8 +171,15 @@ function App() {
         {view === "banking" ? (
           <motion.div key="bank" initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 20, opacity: 0 }} style={styles.fullWidth}>
             <h1 style={styles.title}>📦 ISTANA KARDUS</h1>
+            
+            {/* INDIKATOR BAHAN MENTAH */}
+            <div style={{...styles.cardStok, backgroundColor: '#FFF3E0', borderColor: '#FF9800', color: '#E65100', marginBottom: '15px'}}>
+              <h2 style={{ margin: 0, fontSize: '0.7rem', opacity: 0.8 }}>SISA BAHAN (COLLY)</h2>
+              <div style={{...styles.numberStok, fontSize: '2.5rem'}}>{loading ? "..." : stokBahanColly}</div>
+            </div>
+
             <div style={styles.cardStok}>
-              <h2 style={{ margin: 0, fontSize: '0.9rem', opacity: 0.8 }}>TOTAL DEPOSITO NASABAH</h2>
+              <h2 style={{ margin: 0, fontSize: '0.7rem', opacity: 0.8 }}>TOTAL DEPOSITO NASABAH</h2>
               <div style={styles.numberStok}>{loading ? "..." : stokManusia}</div>
             </div>
 
@@ -198,22 +195,19 @@ function App() {
             </div>
 
             <div style={styles.leaderboardContainer}>
-              <h3 style={{ textAlign: 'center', color: '#8B4513', marginBottom: '20px' }}>🏆 KASTA PERAKIT</h3>
-              {nasabah
-                .filter(orang => orang.nama !== "SISTEM") 
-                .sort((a, b) => b.rakitTotal - a.rakitTotal)
-                .map((orang, index) => (
-                  <motion.div key={orang.id} whileHover={{ scale: 1.02 }} style={{...styles.labelNasabah, borderColor: index === 0 ? "#FFD700" : "#D2B48C", backgroundColor: index === 0 ? "#FFFDE7" : "white"}}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                      <span style={{ fontSize: '1.5rem' }}>{index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "👤"}</span>
-                      <div style={{ textAlign: 'left' }}>
-                        <div style={{ fontWeight: 'bold', color: '#5D4037' }}>{orang.nama}</div>
-                        <span style={{ fontSize: '0.8rem', color: '#A0522D' }}>🔥 {orang.rakitTotal} Dus</span>
-                      </div>
+              <h3 style={{ textAlign: 'center', color: '#8B4513' }}>🏆 KASTA PERAKIT</h3>
+              {nasabah.filter(orang => orang.nama !== "SISTEM").sort((a, b) => b.rakitTotal - a.rakitTotal).map((orang, index) => (
+                <motion.div key={orang.id} whileHover={{ scale: 1.02 }} style={{...styles.labelNasabah, borderColor: index === 0 ? "#FFD700" : "#D2B48C", backgroundColor: index === 0 ? "#FFFDE7" : "white"}}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    <span style={{ fontSize: '1.5rem' }}>{index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "👤"}</span>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontWeight: 'bold', color: '#5D4037' }}>{orang.nama}</div>
+                      <span style={{ fontSize: '0.8rem', color: '#A0522D' }}>🔥 {orang.rakitTotal} Dus</span>
                     </div>
-                    <div style={styles.badgeDeposito}>{orang.deposito}</div>
-                  </motion.div>
-                ))}
+                  </div>
+                  <div style={styles.badgeDeposito}>{orang.deposito}</div>
+                </motion.div>
+              ))}
             </div>
           </motion.div>
         ) : (
@@ -222,16 +216,12 @@ function App() {
             <div style={{...styles.cardStok, backgroundColor: '#4CAF50', borderColor: '#2E7D32'}}>
               <h2 style={{ margin: 0, fontSize: '0.9rem', opacity: 0.8 }}>STOK FISIK REAL</h2>
               <div style={styles.numberStok}>{loading ? "..." : sisaStokFisik}</div>
-              
-              {!loading && (() => {
-                const sisaHari = Math.floor(sisaStokFisik / 810);
-                return (
-                  <div style={{marginTop: '15px', padding: '12px', backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: '15px', border: '1px dashed white'}}>
-                    <div style={{fontSize: '0.7rem', fontWeight: 'bold'}}>🕒 ESTIMASI STOK</div>
-                    <div style={{fontSize: '1.4rem', fontWeight: '900'}}>{sisaHari <= 0 ? "KIAMAT!" : `${sisaHari} HARI LAGI`}</div>
-                  </div>
-                );
-              })()}
+              {!loading && (
+                <div style={{marginTop: '15px', padding: '10px', backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: '15px', border: '1px dashed white'}}>
+                  <div style={{fontSize: '0.7rem'}}>🕒 ESTIMASI KIAMAT</div>
+                  <div style={{fontSize: '1.2rem', fontWeight: '900'}}>{Math.floor(sisaStokFisik / 810) <= 0 ? "HARI INI!" : `${Math.floor(sisaStokFisik / 810)} HARI LAGI`}</div>
+                </div>
+              )}
             </div>
 
             <div style={{...styles.formContainer, border: '3px dashed #2E7D32'}}>
@@ -266,17 +256,17 @@ const styles = {
   quoteBox: { backgroundColor: '#FFF9C4', padding: '10px 20px', borderRadius: '50px', border: '2px solid #FBC02D', color: '#827717', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '15px', textAlign: 'center' },
   tabContainer: { display: 'flex', gap: '10px', marginBottom: '20px', backgroundColor: '#EFEBE9', padding: '5px', borderRadius: '15px' },
   tab: { padding: '10px 20px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', transition: '0.3s' },
-  fullWidth: { width: '100%', maxWidth: '500px', display: 'flex', flexDirection: 'column', alignItems: 'center' },
-  title: { fontSize: '2rem', color: '#8B4513', marginBottom: '20px' },
-  cardStok: { backgroundColor: '#DEB887', padding: '20px', borderRadius: '25px', color: 'white', width: '100%', border: '4px solid #8B4513', textAlign: 'center', boxSizing: 'border-box' },
+  fullWidth: { width: '100%', maxWidth: '500px' },
+  title: { fontSize: '2rem', color: '#8B4513', marginBottom: '20px', textAlign: 'center' },
+  cardStok: { backgroundColor: '#DEB887', padding: '20px', borderRadius: '25px', color: 'white', border: '4px solid #8B4513', textAlign: 'center' },
   numberStok: { fontSize: '3.5rem', fontWeight: '900' },
-  formContainer: { backgroundColor: '#FAEBD7', padding: '20px', borderRadius: '20px', marginTop: '20px', width: '100%', border: '3px dashed #8B4513', boxSizing: 'border-box' },
+  formContainer: { backgroundColor: '#FAEBD7', padding: '20px', borderRadius: '20px', marginTop: '20px', border: '3px dashed #8B4513' },
   form: { display: 'flex', flexDirection: 'column', gap: '10px' },
   input: { padding: '12px', borderRadius: '10px', border: '2px solid #D2B48C', fontSize: '1rem', width: '100%', boxSizing: 'border-box' },
   buttonSubmit: { padding: '15px', backgroundColor: '#8B4513', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' },
-  leaderboardContainer: { width: '100%', marginTop: '30px' },
+  leaderboardContainer: { marginTop: '30px' },
   labelNasabah: { padding: '12px', marginBottom: '8px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', border: '2px solid' },
-  badgeDeposito: { backgroundColor: '#6B8E23', color: 'white', padding: '5px 12px', borderRadius: '8px', fontWeight: 'bold', minWidth: '60px', textAlign: 'center' }
+  badgeDeposito: { backgroundColor: '#6B8E23', color: 'white', padding: '5px 12px', borderRadius: '8px', fontWeight: 'bold' }
 }
 
 export default App
