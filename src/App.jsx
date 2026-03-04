@@ -162,11 +162,13 @@ function App() {
   const sisaStokFisik = stokTotal - stokKeluar;
 
 const dapatkanGelar = (total) => {
+  // Tambahkan di paling atas fungsi dapatkanGelar
+  if (total >= 5000 && deposito > 1000) return { teks: "PRESIDEN UNITED OF DUZZZ 🏛️", warna: "#1A237E" };
   if (total >= 5000) return { teks: "DEWA KARDUS SEMESTA 🌌", warna: "#4A148C" }; // Ungu Deep
   if (total >= 4500) return { teks: "KAISAR DUS ABADI 👑", warna: "#B71C1C" };    // Merah Darah
   if (total >= 4000) return { teks: "SULTAN ELITE 💎", warna: "#0D47A1" };       // Biru Royal
   if (total >= 3500) return { teks: "LEGEND RAKIT 🏆", warna: "#E65100" };       // Oranye Gelap
-  if (total >= 3000) return { teks: "PENGUASA GUDANG 🏰", warna: "#004D40" };     // Hijau Botol
+  if (total >= 3000) return { teks: "C.E.O Duzzz 🏰", warna: "#004D40" };     // Hijau Botol
   if (total >= 2500) return { teks: "JURAGAN KAYA 💸", warna: "#2E7D32" };       // Hijau Duit
   if (total >= 2000) return { teks: "JAWARA PRO 🦾", warna: "#37474F" };         // Abu Metalik
   if (total >= 1500) return { teks: "PENDEKAR DUS ⚔️", warna: "#5D4037" };       // Cokelat Tua
