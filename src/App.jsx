@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence, useAnimation } from 'framer-motion'
 import useSound from 'use-sound' 
 import suaraSetor from './assets/setor.mp3'
@@ -19,11 +19,12 @@ function App() {
   const [view, setView] = useState("banking");
   const [stokTotal, setStokTotal] = useState(0); 
   const [stokManusia, setStokManusia] = useState(0); 
-  const [stokBahanColly, setStokBahanColly] = useState(0); // Sisa bahan mentah
+  const [stokBahanColly, setStokBahanColly] = useState(0); 
   const [stokKeluar, setStokKeluar] = useState(0);
   const [nasabah, setNasabah] = useState([]); 
   const [logistikList, setLogistikList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true); // Penanda load pertama
   const [randomQuote] = useState(quotes[Math.floor(Math.random() * quotes.length)]);
 
   // --- STATE INPUT ---
@@ -38,50 +39,53 @@ function App() {
   const [playSetor] = useSound(suaraSetor, { volume: 0.5 });
   const [playTruk] = useSound(suaraTruk, { volume: 0.7 });
 
-  const fetchData = async () => {
-    setLoading(true);
-    // Ambil Nasabah, Logistik, dan Stok Bahan Mentah
-    const { data: nData } = await supabase.from('nasabah').select(`id, nama, transaksi_gudang (rakit_gross, deposito_nett, colly)`);
-    const { data: lData } = await supabase.from('logistik_keluar').select('*').order('created_at', { ascending: false });
-    const { data: bData } = await supabase.from('stok_bahan').select('jumlah_masuk');
-
-    if (nData) {
-      const formatted = nData.map(n => ({
-        id: n.id,
-        nama: n.nama,
-        rakitTotal: n.transaksi_gudang.reduce((sum, t) => sum + t.rakit_gross, 0),
-        deposito: n.transaksi_gudang.reduce((sum, t) => sum + t.deposito_nett, 0),
-        collyTotal: n.transaksi_gudang.reduce((sum, t) => sum + t.colly, 0)
-      }));
-
-      // 1. Hitung Total Deposito Murni (Bukan SISTEM)
-      const totalMurni = formatted
-        .filter(n => n.nama !== "SISTEM")
-        .reduce((sum, n) => sum + n.deposito, 0);
-      
-      // 2. Hitung Total Semua (Untuk Logistik)
-      const totalSemua = formatted.reduce((sum, n) => sum + n.deposito, 0);
-
-      // 3. Hitung Sisa Bahan Mentah (Stok Bahan Masuk - Colly yang sudah dirakit)
-      const totalCollyTerpakai = formatted
-        .filter(n => n.nama !== "SISTEM")
-        .reduce((sum, n) => sum + n.collyTotal, 0);
-      const totalBahanMasuk = bData ? bData.reduce((sum, b) => sum + b.jumlah_masuk, 0) : 0;
-
-      setNasabah(formatted);
-      setStokManusia(totalMurni); 
-      setStokTotal(totalSemua); 
-      setStokBahanColly(totalBahanMasuk - totalCollyTerpakai);
-    }
+  // Pake useCallback biar fungsi ga dibikin ulang terus & hemat memory
+  const fetchData = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     
-    if (lData) {
-      setLogistikList(lData);
-      setStokKeluar(lData.reduce((sum, l) => sum + l.jumlah_keluar, 0));
-    }
-    setLoading(false);
-  };
+    try {
+      const [nRes, lRes, bRes] = await Promise.all([
+        supabase.from('nasabah').select(`id, nama, transaksi_gudang (rakit_gross, deposito_nett, colly)`),
+        supabase.from('logistik_keluar').select('*').order('created_at', { ascending: false }),
+        supabase.from('stok_bahan').select('jumlah_masuk')
+      ]);
 
-  useEffect(() => { fetchData(); }, []);
+      if (nRes.data) {
+        const formatted = nRes.data.map(n => ({
+          id: n.id,
+          nama: n.nama,
+          rakitTotal: n.transaksi_gudang.reduce((sum, t) => sum + t.rakit_gross, 0),
+          deposito: n.transaksi_gudang.reduce((sum, t) => sum + t.deposito_nett, 0),
+          collyTotal: n.transaksi_gudang.reduce((sum, t) => sum + t.colly, 0)
+        }));
+
+        const totalMurni = formatted.filter(n => n.nama !== "SISTEM").reduce((sum, n) => sum + n.deposito, 0);
+        const totalSemua = formatted.reduce((sum, n) => sum + n.deposito, 0);
+        const totalCollyTerpakai = formatted.filter(n => n.nama !== "SISTEM").reduce((sum, n) => sum + n.collyTotal, 0);
+        const totalBahanMasuk = bRes.data ? bRes.data.reduce((sum, b) => sum + b.jumlah_masuk, 0) : 0;
+
+        setNasabah(formatted);
+        setStokManusia(totalMurni); 
+        setStokTotal(totalSemua); 
+        setStokBahanColly(totalBahanMasuk - totalCollyTerpakai);
+      }
+      
+      if (lRes.data) {
+        setLogistikList(lRes.data);
+        setStokKeluar(lRes.data.reduce((sum, l) => sum + l.jumlah_keluar, 0));
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
+    } finally {
+      setLoading(false);
+      setIsInitialLoad(false);
+    }
+  }, []);
+
+  // Cuma jalan sekali pas aplikasi dibuka
+  useEffect(() => { 
+    fetchData(); 
+  }, [fetchData]);
 
   const tambahSetoran = async (e) => {
     e.preventDefault();
@@ -93,9 +97,8 @@ function App() {
       return;
     }
 
-    // SAFE GUARD: Mencegah input PCS ke kolom COLLY
     if (collyNum >= 50) {
-      alert(`🚫 INPUT DITOLAK!\n\nKamu input ${collyNum} Colly? Kayaknya kamu salah input jumlah PCS DUS ke kolom COLLY.\n\nIngat: 1 Colly = 200 Dus.`);
+      alert(`🚫 INPUT DITOLAK!\n\nIngat: 1 Colly = 200 Dus.`);
       return;
     }
 
@@ -130,8 +133,9 @@ function App() {
 
       if (error) throw error;
       playSetor();
-      alert(isFirstSetoranToday ? "✅ Setoran Pertama Berhasil!" : "✅ Setoran Tambahan Berhasil!");
-      setInputNama(""); setInputColly(""); fetchData();
+      alert("✅ Setoran Berhasil!");
+      setInputNama(""); setInputColly(""); 
+      fetchData(true); // Silent update data
     } catch (err) { alert(err.message); }
   };
 
@@ -149,7 +153,8 @@ function App() {
         jumlah_keluar: totalDusKeluar, keterangan: `${jumlahKeluar} Kantong`
       }]);
       if (error) throw error;
-      playTruk(); setSupir(""); setJumlahKeluar(""); fetchData();
+      playTruk(); setSupir(""); setJumlahKeluar(""); 
+      fetchData(true); // Silent update data
       alert(`🚛 TELOLET!! ${jumlahKeluar} Kantong Meluncur!`);
     } catch (err) { alert(err.message); }
   };
@@ -172,15 +177,14 @@ function App() {
           <motion.div key="bank" initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 20, opacity: 0 }} style={styles.fullWidth}>
             <h1 style={styles.title}>📦 ISTANA KARDUS</h1>
             
-            {/* INDIKATOR BAHAN MENTAH */}
             <div style={{...styles.cardStok, backgroundColor: '#FFF3E0', borderColor: '#FF9800', color: '#E65100', marginBottom: '15px'}}>
               <h2 style={{ margin: 0, fontSize: '0.7rem', opacity: 0.8 }}>SISA BAHAN (COLLY)</h2>
-              <div style={{...styles.numberStok, fontSize: '2.5rem'}}>{loading ? "..." : stokBahanColly}</div>
+              <div style={{...styles.numberStok, fontSize: '2.5rem'}}>{isInitialLoad ? "..." : stokBahanColly}</div>
             </div>
 
             <div style={styles.cardStok}>
               <h2 style={{ margin: 0, fontSize: '0.7rem', opacity: 0.8 }}>TOTAL DEPOSITO NASABAH</h2>
-              <div style={styles.numberStok}>{loading ? "..." : stokManusia}</div>
+              <div style={styles.numberStok}>{isInitialLoad ? "..." : stokManusia}</div>
             </div>
 
             <div style={styles.formContainer}>
@@ -190,14 +194,16 @@ function App() {
                   <option value="1">Shift 1</option><option value="2">Shift 2</option><option value="Middle">Middle</option>
                 </select>
                 <input style={styles.input} type="number" placeholder="Jumlah Colly..." value={inputColly} onChange={(e) => setInputColly(e.target.value)} />
-                <motion.button animate={controls} style={styles.buttonSubmit}>SETOR SEKARANG 🚀</motion.button>
+                <motion.button animate={controls} style={styles.buttonSubmit} disabled={loading}>
+                   {loading ? "MEMPROSES..." : "SETOR SEKARANG 🚀"}
+                </motion.button>
               </form>
             </div>
 
             <div style={styles.leaderboardContainer}>
               <h3 style={{ textAlign: 'center', color: '#8B4513' }}>🏆 KASTA PERAKIT</h3>
               {nasabah.filter(orang => orang.nama !== "SISTEM").sort((a, b) => b.rakitTotal - a.rakitTotal).map((orang, index) => (
-                <motion.div key={orang.id} whileHover={{ scale: 1.02 }} style={{...styles.labelNasabah, borderColor: index === 0 ? "#FFD700" : "#D2B48C", backgroundColor: index === 0 ? "#FFFDE7" : "white"}}>
+                <div key={orang.id} style={{...styles.labelNasabah, borderColor: index === 0 ? "#FFD700" : "#D2B48C", backgroundColor: index === 0 ? "#FFFDE7" : "white"}}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                     <span style={{ fontSize: '1.5rem' }}>{index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "👤"}</span>
                     <div style={{ textAlign: 'left' }}>
@@ -206,7 +212,7 @@ function App() {
                     </div>
                   </div>
                   <div style={styles.badgeDeposito}>{orang.deposito}</div>
-                </motion.div>
+                </div>
               ))}
             </div>
           </motion.div>
@@ -215,8 +221,8 @@ function App() {
             <h1 style={{...styles.title, color: '#2E7D32'}}>🚛 LOGISTIK DUS</h1>
             <div style={{...styles.cardStok, backgroundColor: '#4CAF50', borderColor: '#2E7D32'}}>
               <h2 style={{ margin: 0, fontSize: '0.9rem', opacity: 0.8 }}>STOK FISIK REAL</h2>
-              <div style={styles.numberStok}>{loading ? "..." : sisaStokFisik}</div>
-              {!loading && (
+              <div style={styles.numberStok}>{isInitialLoad ? "..." : sisaStokFisik}</div>
+              {!isInitialLoad && (
                 <div style={{marginTop: '15px', padding: '10px', backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: '15px', border: '1px dashed white'}}>
                   <div style={{fontSize: '0.7rem'}}>🕒 ESTIMASI KIAMAT</div>
                   <div style={{fontSize: '1.2rem', fontWeight: '900'}}>{Math.floor(sisaStokFisik / 810) <= 0 ? "HARI INI!" : `${Math.floor(sisaStokFisik / 810)} HARI LAGI`}</div>
@@ -228,7 +234,9 @@ function App() {
               <form onSubmit={tambahLogistik} style={styles.form}>
                 <input style={styles.input} placeholder="Nama Supir..." value={supir} onChange={(e) => setSupir(e.target.value)} />
                 <input style={styles.input} type="number" placeholder="Jumlah Kantong..." value={jumlahKeluar} onChange={(e) => setJumlahKeluar(e.target.value)} />
-                <button type="submit" style={{...styles.buttonSubmit, backgroundColor: '#2E7D32'}}>CATAT PENGIRIMAN 🚚</button>
+                <button type="submit" style={{...styles.buttonSubmit, backgroundColor: '#2E7D32'}} disabled={loading}>
+                  {loading ? "MENGIRIM..." : "CATAT PENGIRIMAN 🚚"}
+                </button>
               </form>
             </div>
 
@@ -247,6 +255,14 @@ function App() {
           </motion.div>
         )}
       </AnimatePresence>
+      
+      {/* Tombol Refresh Manual (Sangat membantu kalo internet lemot) */}
+      <button 
+        onClick={() => fetchData()} 
+        style={{marginTop: '20px', fontSize: '0.7rem', color: '#8B4513', background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer'}}
+      >
+        Refresh Data Manual
+      </button>
     </div>
   )
 }
