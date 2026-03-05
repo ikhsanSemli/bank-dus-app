@@ -61,7 +61,8 @@ function App() {
       const formatted = nData.map(n => ({
         id: n.id,
         nama: n.nama,
-        rakitTotal: n.transaksi_gudang.reduce((sum, t) => sum + t.rakit_gross, 0),
+        rakitTotal: n.transaksi_gudang.reduce((sum, t) => sum + (t.colly * 200), 0),
+
         deposito: n.transaksi_gudang.reduce((sum, t) => sum + t.deposito_nett, 0)
       }));
       setNasabah(formatted);
