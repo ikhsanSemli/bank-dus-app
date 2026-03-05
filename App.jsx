@@ -5,7 +5,7 @@ import suaraSetor from './assets/setor.mp3'
 import suaraTruk from './assets/truk.mp3' 
 import { supabase } from './lib/supabaseClient' 
 
-// --- DATA LUCU-LUCUAN ---
+// --- DATA QUOTES ESTETIK ---
 const quotes = [
   "Rakit terus sampe mampus! 💸",
   "Kardus dirakit, cuan selangit! 🚀",
@@ -37,6 +37,21 @@ function App() {
   const [playSetor] = useSound(suaraSetor, { volume: 0.5 });
   const [playTruk] = useSound(suaraTruk, { volume: 0.7 });
 
+  // --- LOGIKA GELAR KELIPATAN 500 ---
+  const dapatkanGelar = (total) => {
+    if (total >= 5000) return { teks: "DEWA KARDUS SEMESTA 🌌", warna: "#4A148C" };
+    if (total >= 4500) return { teks: "KAISAR DUS ABADI 👑", warna: "#B71C1C" };
+    if (total >= 4000) return { teks: "SULTAN ELITE 💎", warna: "#0D47A1" };
+    if (total >= 3500) return { teks: "LEGEND RAKIT 🏆", warna: "#E65100" };
+    if (total >= 3000) return { teks: "PENGUASA GUDANG 🏰", warna: "#004D40" };
+    if (total >= 2500) return { teks: "JURAGAN KAYA 💸", warna: "#2E7D32" };
+    if (total >= 2000) return { teks: "JAWARA PRO 🦾", warna: "#37474F" };
+    if (total >= 1500) return { teks: "PENDEKAR DUS ⚔️", warna: "#5D4037" };
+    if (total >= 1000) return { teks: "SPESIALIS RAKIT ✨", warna: "#00838F" };
+    if (total >= 500)  return { teks: "PERAKIT AMBICIUS 🚀", warna: "#F9A825" };
+    return { teks: "WARGA RAJIN 🌱", warna: "#8BC34A" };
+  };
+
   const fetchData = async () => {
     setLoading(true);
     const { data: nData } = await supabase.from('nasabah').select(`id, nama, transaksi_gudang (rakit_gross, deposito_nett)`);
@@ -50,7 +65,8 @@ function App() {
         deposito: n.transaksi_gudang.reduce((sum, t) => sum + t.deposito_nett, 0)
       }));
       setNasabah(formatted);
-      setStokTotal(formatted.reduce((sum, n) => sum + n.deposito, 0));
+      // PERBAIKAN: Stok fisik dihitung dari TOTAL RAKIT, bukan deposito uang
+      setStokTotal(formatted.reduce((sum, n) => sum + n.rakitTotal, 0)); 
     }
     if (lData) {
       setLogistikList(lData);
@@ -66,7 +82,8 @@ function App() {
     const namaClean = inputNama.trim();
     const collyNum = parseInt(inputColly);
     
-    if (!namaClean || !inputColly) {
+    // PERBAIKAN: Menggunakan === "" agar angka 0 bisa diinput
+    if (!namaClean || inputColly === "") {
       controls.start({ x: [0, -10, 10, -10, 10, 0], transition: { duration: 0.4 } });
       return;
     }
@@ -85,7 +102,8 @@ function App() {
 
       await supabase.from('transaksi_gudang').insert([{
         nasabah_id: userId, shift: inputShift, colly: collyNum,
-        rakit_gross: collyNum * 200, deposito_nett: (collyNum * 200) - (inputShift === "Middle" ? 400 : 200)
+        rakit_gross: collyNum * 200, 
+        deposito_nett: (collyNum * 200) - (inputShift === "Middle" ? 400 : 200)
       }]);
 
       playSetor();
@@ -112,17 +130,12 @@ function App() {
     } catch (err) { alert(err.message); }
   };
 
-  // --- LOGIKA KIAMAT STOK ---
+  // --- LOGIKA STOK REAL ---
   const sisaStokFisik = stokTotal - stokKeluar;
-  const sisaHari = Math.floor(sisaStokFisik / 810);
 
   return (
     <div style={styles.container}>
-      <motion.div 
-        animate={{ y: [0, -5, 0] }} 
-        transition={{ repeat: Infinity, duration: 3 }}
-        style={styles.quoteBox}
-      >
+      <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 3 }} style={styles.quoteBox}>
         "{randomQuote}"
       </motion.div>
 
@@ -147,7 +160,7 @@ function App() {
                   <option value="1">Shift 1</option><option value="2">Shift 2</option><option value="Middle">Middle</option>
                 </select>
                 <input style={styles.input} type="number" placeholder="Jumlah Colly..." value={inputColly} onChange={(e) => setInputColly(e.target.value)} />
-                {inputColly && <div style={styles.liveHint}>= {parseInt(inputColly) * 200} Dus</div>}
+                {inputColly !== "" && <div style={styles.liveHint}>= {parseInt(inputColly || 0) * 200} Dus</div>}
                 <motion.button animate={controls} style={styles.buttonSubmit}>SETOR SEKARANG 🚀</motion.button>
               </form>
             </div>
@@ -156,16 +169,14 @@ function App() {
               <h3 style={{ textAlign: 'center', color: '#8B4513', marginBottom: '20px' }}>🏆 KASTA PERAKIT</h3>
               {nasabah
                 .filter(orang => !orang.nama.includes("SISTEM")) 
-                .sort((a, b) => b.rakitTotal - a.rakitTotal)
+                .sort((a, b) => {
+                  // PERBAIKAN: Sortir Rakitan terbanyak, jika sama cek Tabungan terbanyak
+                  if (b.rakitTotal !== a.rakitTotal) return b.rakitTotal - a.rakitTotal;
+                  return b.deposito - a.deposito;
+                })
                 .map((orang, index) => {
                   let medali = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "👤";
-                  const d = Number(orang.rakitTotal) || 0; 
-                  let gelarTeks = "🌱 CALON JURAGAN";
-                  let warnaGelar = "#8B4513";
-
-                  if (d >= 3000) { gelarTeks = "👑 KELAZZ KING"; warnaGelar = "#FF8C00"; } 
-                  else if (d >= 2000) { gelarTeks = "⚔️ PANGLIMA RAKIT"; warnaGelar = "#E64A19"; } 
-                  else if (d >= 1000) { gelarTeks = "💪 PEJUANG KARDUS"; warnaGelar = "#2E7D32"; }
+                  const gelar = dapatkanGelar(orang.rakitTotal);
 
                   return (
                     <motion.div 
@@ -185,7 +196,7 @@ function App() {
                           <div style={{ fontWeight: 'bold', color: '#5D4037', fontSize: '1.1rem' }}>{orang.nama}</div>
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
                             <span style={{ fontSize: '0.8rem', color: '#A0522D', fontWeight: 'bold' }}>🔥 {orang.rakitTotal} Dus</span>
-                            <span style={{ fontSize: '0.65rem', color: warnaGelar, fontWeight: '900', marginTop: '2px' }}>{gelarTeks}</span>
+                            <span style={{ fontSize: '0.65rem', color: gelar.warna, fontWeight: '900', marginTop: '2px' }}>{gelar.teks}</span>
                           </div>
                         </div>
                       </div>
@@ -206,72 +217,45 @@ function App() {
               <h2 style={{ margin: 0, fontSize: '0.9rem', opacity: 0.8 }}>STOK FISIK REAL</h2>
               <div style={styles.numberStok}>{loading ? "..." : sisaStokFisik}</div>
               
-              {/* --- ALAT PENGHITUNG MUNDUR KIAMAT STOK --- */}
-              {/* --- ALAT PENGHITUNG MUNDUR KIAMAT STOK --- */}
-{!loading && (() => {
-  const sisaHari = Math.floor(sisaStokFisik / 810);
-  let statusKiamat = "✅ STOK AMAN";
-  let warnaKiamat = "#FFFFFF";
-  let efekGlow = "none";
-  let backgroundKiamat = "rgba(0,0,0,0.15)";
+              {!loading && (() => {
+                const sisaHari = Math.floor(sisaStokFisik / 810);
+                let statusKiamat = "✅ STOK AMAN";
+                let warnaKiamat = "#FFFFFF";
+                let backgroundKiamat = "rgba(0,0,0,0.15)";
 
-  if (sisaHari <= 0) {
-    statusKiamat = "💀 KIAMAT SUDAH TIBA!";
-    warnaKiamat = "#FFFFFF";
-    backgroundKiamat = "#FF0000"; // Background merah full
-    efekGlow = "0 0 20px #FF0000";
-  } else if (sisaHari <= 2) {
-    statusKiamat = "🆘 SEGERA KIAMAT!";
-    warnaKiamat = "#FF5252";
-    efekGlow = "0 0 10px rgba(255,82,82,0.8)";
-  } else if (sisaHari <= 5) {
-    statusKiamat = "⚠️ STOK MULAI TIPIS";
-    warnaKiamat = "#FFD700"; // Kuning emas
-  }
+                if (sisaHari <= 0) {
+                  statusKiamat = "💀 KIAMAT SUDAH TIBA!";
+                  backgroundKiamat = "#FF0000";
+                } else if (sisaHari <= 2) {
+                  statusKiamat = "🆘 SEGERA KIAMAT!";
+                  warnaKiamat = "#FF5252";
+                } else if (sisaHari <= 5) {
+                  statusKiamat = "⚠️ STOK MULAI TIPIS";
+                  warnaKiamat = "#FFD700";
+                }
 
-  return (
-    <motion.div 
-      animate={sisaHari <= 2 ? { scale: [1, 1.05, 1] } : {}}
-      transition={{ repeat: Infinity, duration: 1 }}
-      style={{
-        marginTop: '15px',
-        padding: '12px',
-        backgroundColor: backgroundKiamat,
-        borderRadius: '15px',
-        border: '1px dashed white',
-        transition: 'all 0.5s ease'
-      }}
-    >
-      <div style={{fontSize: '0.7rem', fontWeight: 'bold', letterSpacing: '1px'}}>🕒 STATUS KIAMAT DUS</div>
-      <div style={{
-        fontSize: '1.4rem', 
-        fontWeight: '900', 
-        color: warnaKiamat,
-        textShadow: efekGlow
-      }}>
-        {sisaHari <= 0 ? statusKiamat : `${sisaHari} HARI LAGI`}
-      </div>
-      <div style={{fontSize: '0.8rem', fontWeight: 'bold', color: warnaKiamat, marginTop: '2px'}}>
-        {sisaHari > 0 && statusKiamat}
-      </div>
-      <div style={{fontSize: '0.6rem', opacity: 0.8, marginTop: '5px'}}>(Asumsi 27 Kantong/Hari)</div>
-    </motion.div>
-  );
-})()}
+                return (
+                  <motion.div animate={sisaHari <= 2 ? { scale: [1, 1.05, 1] } : {}} transition={{ repeat: Infinity, duration: 1 }} style={{ marginTop: '15px', padding: '12px', backgroundColor: backgroundKiamat, borderRadius: '15px', border: '1px dashed white' }}>
+                    <div style={{fontSize: '0.7rem', fontWeight: 'bold'}}>🕒 STATUS KIAMAT DUS</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: '900', color: warnaKiamat }}>
+                      {sisaHari <= 0 ? statusKiamat : `${sisaHari} HARI LAGI`}
+                    </div>
+                    <div style={{fontSize: '0.8rem', fontWeight: 'bold', color: warnaKiamat}}>{sisaHari > 0 && statusKiamat}</div>
+                  </motion.div>
+                );
+              })()}
               
-              <p style={{fontSize: '0.8rem', marginTop: 10}}>Masuk: {stokTotal} | Keluar: {stokKeluar}</p>
+              <p style={{fontSize: '0.8rem', marginTop: 10}}>Masuk (Rakit): {stokTotal} | Keluar: {stokKeluar}</p>
             </div>
 
             <div style={{...styles.formContainer, border: '3px dashed #2E7D32'}}>
               <form onSubmit={tambahLogistik} style={styles.form}>
-                <input style={styles.input} placeholder="Nama Supir / No Polisi..." value={supir} onChange={(e) => setSupir(e.target.value)} />
+                <input style={styles.input} placeholder="Nama Supir..." value={supir} onChange={(e) => setSupir(e.target.value)} />
                 <select style={styles.input} value={shiftSupir} onChange={(e) => setShiftSupir(e.target.value)}>
                   <option value="1">Shift 1</option><option value="2">Shift 2</option>
                 </select>
-                <div style={{ position: 'relative' }}>
-                  <input style={{...styles.input, width: '100%', boxSizing: 'border-box'}} type="number" placeholder="Berapa kantong yang dikirim?" value={jumlahKeluar} onChange={(e) => setJumlahKeluar(e.target.value)} />
-                  {jumlahKeluar && <div style={{...styles.liveHint, color: '#2E7D32'}}>= {parseInt(jumlahKeluar) * 30} Dus</div>}
-                </div>
+                <input style={styles.input} type="number" placeholder="Jumlah kantong?" value={jumlahKeluar} onChange={(e) => setJumlahKeluar(e.target.value)} />
+                {jumlahKeluar && <div style={{...styles.liveHint, color: '#2E7D32'}}>= {parseInt(jumlahKeluar) * 30} Dus</div>}
                 <button type="submit" style={{...styles.buttonSubmit, backgroundColor: '#2E7D32'}}>CATAT PENGIRIMAN 🚚</button>
               </form>
             </div>
