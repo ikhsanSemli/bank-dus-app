@@ -68,66 +68,16 @@ function App() {
       // Kita ambil data dari 24 jam terakhir saja biar aman dari perbedaan timezone
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-      const fetchData = useCallback(async (isSilent = false) => {
-    if (!isSilent) setLoading(true);
-    
-    try {
       const [nRes, lRes, bRes, logRes] = await Promise.all([
         supabase.from('nasabah').select(`id, nama, transaksi_gudang (rakit_gross, deposito_nett, colly)`),
         supabase.from('logistik_keluar').select('*').order('created_at', { ascending: false }),
         supabase.from('stok_bahan').select('jumlah_masuk'),
-        // Kita ambil data mentah saja (tanpa join nama dulu biar gak error)
         supabase.from('transaksi_gudang')
-          .select('id, rakit_gross, deposito_nett, nasabah_id, tanggal')
-          .order('id', { ascending: false })
-          .limit(3)
+          .select('id, rakit_gross, deposito_nett, tanggal, nasabah(nama)')
+          .gte('tanggal', twentyFourHoursAgo.toISOString()) // Ganti jadi 24 jam terakhir
+          .order('tanggal', { ascending: false })
+          .limit(3) 
       ]);
-
-      if (nRes.data) {
-        const formatted = nRes.data.map(n => ({
-          id: n.id,
-          nama: n.nama,
-          rakitTotal: n.transaksi_gudang.reduce((sum, t) => sum + (t.rakit_gross || 0), 0),
-          deposito: n.transaksi_gudang.reduce((sum, t) => sum + (t.deposito_nett || 0), 0),
-          collyTotal: n.transaksi_gudang.reduce((sum, t) => sum + (t.colly || 0), 0)
-        }));
-
-        setNasabah(formatted);
-        setStokManusia(formatted.filter(n => n.nama !== "SISTEM").reduce((sum, n) => sum + n.deposito, 0)); 
-        setStokTotal(formatted.reduce((sum, n) => sum + n.rakitTotal, 0)); 
-        
-        const totalCollyTerpakai = formatted.filter(n => n.nama !== "SISTEM").reduce((sum, n) => sum + n.collyTotal, 0);
-        const totalBahanMasuk = bRes.data ? bRes.data.reduce((sum, b) => sum + b.jumlah_masuk, 0) : 0;
-        setStokBahanColly(totalBahanMasuk - totalCollyTerpakai);
-
-        // --- LOGIKA COCOKKAN NAMA NASABAH SECARA MANUAL ---
-        if (logRes.data) {
-          const logBerwarna = logRes.data.map(log => {
-            const dataNasabah = formatted.find(n => n.id === log.nasabah_id);
-            return {
-              ...log,
-              nama_tampil: dataNasabah ? dataNasabah.nama : "Anonim"
-            };
-          });
-          setLogHariIni(logBerwarna);
-        }
-      }
-      
-      if (lRes.data) {
-        setLogistikList(lRes.data);
-        setStokKeluar(lRes.data.reduce((sum, l) => sum + l.jumlah_keluar, 0));
-      }
-    } catch (err) {
-      console.error("Fetch error:", err);
-    } finally {
-      setLoading(false);
-      setIsInitialLoad(false);
-    }
-  }, []);
-
-      // --- BARIS PENTING: Cek isi perut data di Console (F12) ---
-      console.log("Hasil Debug Log:", logRes.data);
-      if (logRes.error) console.error("Error Detail:", logRes.error);
 
       if (nRes.data) {
         const formatted = nRes.data.map(n => ({
@@ -272,17 +222,11 @@ function App() {
               </div>
               {logHariIni.length > 0 ? logHariIni.map((log) => (
                 <div key={log.id} style={styles.logItem}>
-                  <span>
-                    <b>{log.nama_tampil}</b>: {log.rakit_gross || 0} dus (Tab: {log.deposito_nett || 0})
-                  </span>
-                  <span style={{fontSize: '0.55rem', opacity: 0.6}}>
-                    {log.tanggal ? new Date(log.tanggal).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}) : '--:--'}
-                  </span>
+                  <span><b>{log.nasabah?.nama}</b>: {log.rakit_gross} dus (Tab: {log.deposito_nett})</span>
+                  <span style={{fontSize: '0.55rem', opacity: 0.6}}>{new Date(log.tanggal).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})}</span>
                 </div>
               )) : <div style={{fontSize: '0.7rem', color: '#A0522D', fontStyle: 'italic'}}>Belum ada setoran...</div>}
-
             </div>
-
 
             <div style={styles.formContainer}>
               <form onSubmit={tambahSetoran} style={styles.form}>
