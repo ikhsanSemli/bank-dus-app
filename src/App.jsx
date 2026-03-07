@@ -378,7 +378,7 @@ const styles = {
   cardStok: { backgroundColor: '#DEB887', padding: '15px', borderRadius: '25px', color: 'white', border: '4px solid #8B4513', textAlign: 'center' },
   numberStok: { fontSize: '3.5rem', fontWeight: '900' },
   logContainer: { width: '100%', backgroundColor: 'rgba(255, 255, 255, 0.4)', padding: '10px', borderRadius: '15px', border: '1px solid #D2B48C', marginTop: '15px', boxSizing: 'border-box', maxHeight: '150px',overflowY: 'auto' },
-  logItem: { fontSize: '0.7rem', color: '#5D4037', display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px dashed #D2B48C' },
+  logItem: { fontSize: '0.7rem', color: '#5D4037', display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px dashed #D2B48C', alignItems: 'center' },
   formContainer: { backgroundColor: '#FAEBD7', padding: '20px', borderRadius: '20px', marginTop: '15px', border: '3px dashed #8B4513' },
   form: { display: 'flex', flexDirection: 'column', gap: '10px' },
   input: { padding: '12px', borderRadius: '10px', border: '2px solid #D2B48C', fontSize: '1rem', width: '100%', boxSizing: 'border-box' },
