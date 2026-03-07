@@ -23,8 +23,9 @@ function App() {
   const [stokKeluar, setStokKeluar] = useState(0);
   const [nasabah, setNasabah] = useState([]); 
   const [logistikList, setLogistikList] = useState([]);
+  const [logHariIni, setLogHariIni] = useState([]); // FITUR BARU: Log Aktivitas
   const [loading, setLoading] = useState(true);
-  const [isInitialLoad, setIsInitialLoad] = useState(true); // Penanda load pertama
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [randomQuote] = useState(quotes[Math.floor(Math.random() * quotes.length)]);
 
   // --- STATE INPUT ---
@@ -39,15 +40,41 @@ function App() {
   const [playSetor] = useSound(suaraSetor, { volume: 0.5 });
   const [playTruk] = useSound(suaraTruk, { volume: 0.7 });
 
-  // Pake useCallback biar fungsi ga dibikin ulang terus & hemat memory
+  // --- FUNGSI GELAR (FIXED) ---
+  const dapatkanGelar = (total, tabungan) => {
+    if (total >= 5000 && tabungan > 1000) return { teks: "PRESIDENT UNITED OF DUZZZ 🏛️", warna: "#1A237E" };
+    if (total >= 5000) return { teks: "DEWA KARDUS SEMESTA 🌌", warna: "#4A148C" };
+    if (total >= 4500) return { teks: "KAISAR DUS ABADI 👑", warna: "#B71C1C" };
+    if (total >= 4000) return { teks: "SULTAN ELITE 💎", warna: "#0D47A1" };
+    if (total >= 3500) return { teks: "LEGEND RAKIT 🏆", warna: "#E65100" };
+    if (total >= 3000) return { teks: "C.E.O Duzzz 🏰", warna: "#004D40" };
+    if (total >= 2500) return { teks: "JURAGAN KAYA 💸", warna: "#2E7D32" };
+    if (total >= 2000) return { teks: "JAWARA PRO 🦾", warna: "#37474F" };
+    if (total >= 1500) return { teks: "PENDEKAR DUS ⚔️", warna: "#5D4037" };
+    if (total >= 1000) return { teks: "SPESIALIS RAKIT ✨", warna: "#00838F" };
+    if (total >= 500)  return { teks: "PERAKIT AMBICIUS 🚀", warna: "#F9A825" };
+    return { teks: "WARGA RAJIN 🌱", warna: "#8BC34A" };
+  };
+
   const fetchData = useCallback(async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     
     try {
-      const [nRes, lRes, bRes] = await Promise.all([
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const [nRes, lRes, bRes, logRes] = await Promise.all([
         supabase.from('nasabah').select(`id, nama, transaksi_gudang (rakit_gross, deposito_nett, colly)`),
         supabase.from('logistik_keluar').select('*').order('created_at', { ascending: false }),
-        supabase.from('stok_bahan').select('jumlah_masuk')
+        supabase.from('stok_bahan').select('jumlah_masuk'),
+        supabase.from('transaksi_gudang')
+          .select('id, rakit_gross, deposito_nett, tanggal, nasabah(nama)')
+          .gte('tanggal', today.toISOString())
+          .lt('tanggal', tomorrow.toISOString())
+          .order('tanggal', { ascending: false })
+          .limit(3) // Ambil 3 aktivitas terbaru hari ini
       ]);
 
       if (nRes.data) {
@@ -74,6 +101,9 @@ function App() {
         setLogistikList(lRes.data);
         setStokKeluar(lRes.data.reduce((sum, l) => sum + l.jumlah_keluar, 0));
       }
+
+      if (logRes) setLogHariIni(logRes);
+
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
@@ -82,25 +112,20 @@ function App() {
     }
   }, []);
 
-  // Cuma jalan sekali pas aplikasi dibuka
-  useEffect(() => { 
-    fetchData(); 
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const tambahSetoran = async (e) => {
     e.preventDefault();
     const namaRaw = inputNama.trim();
-    const collyNum = parseInt(inputColly);
     
-    if (!namaRaw || !inputColly) {
+    // PERBAIKAN: Izinkan input 0 Colly
+    if (!namaRaw || inputColly === "") {
       controls.start({ x: [0, -10, 10, -10, 10, 0], transition: { duration: 0.4 } });
       return;
     }
 
-    if (collyNum >= 50) {
-      alert(`🚫 INPUT DITOLAK!\n\nIngat: 1 Colly = 200 Dus.`);
-      return;
-    }
+    const collyNum = parseInt(inputColly);
+    if (collyNum >= 50) return alert(`🚫 INPUT DITOLAK!\n\nIngat: 1 Colly = 200 Dus.`);
 
     try {
       const namaClean = namaRaw.charAt(0).toUpperCase() + namaRaw.slice(1).toLowerCase();
@@ -135,7 +160,7 @@ function App() {
       playSetor();
       alert("✅ Setoran Berhasil!");
       setInputNama(""); setInputColly(""); 
-      fetchData(true); // Silent update data
+      fetchData(true);
     } catch (err) { alert(err.message); }
   };
 
@@ -154,28 +179,12 @@ function App() {
       }]);
       if (error) throw error;
       playTruk(); setSupir(""); setJumlahKeluar(""); 
-      fetchData(true); // Silent update data
+      fetchData(true);
       alert(`🚛 TELOLET!! ${jumlahKeluar} Kantong Meluncur!`);
     } catch (err) { alert(err.message); }
   };
 
   const sisaStokFisik = stokTotal - stokKeluar;
-
-const dapatkanGelar = (total) => {
-  // Tambahkan di paling atas fungsi dapatkanGelar
-  if (total >= 5000 && deposito > 1000) return { teks: "PRESIDENT UNITED OF DUZZZ 🏛️", warna: "#1A237E" };
-  if (total >= 5000) return { teks: "DEWA KARDUS SEMESTA 🌌", warna: "#4A148C" }; // Ungu Deep
-  if (total >= 4500) return { teks: "KAISAR DUS ABADI 👑", warna: "#B71C1C" };    // Merah Darah
-  if (total >= 4000) return { teks: "SULTAN ELITE 💎", warna: "#0D47A1" };       // Biru Royal
-  if (total >= 3500) return { teks: "LEGEND RAKIT 🏆", warna: "#E65100" };       // Oranye Gelap
-  if (total >= 3000) return { teks: "C.E.O Duzzz 🏰", warna: "#004D40" };     // Hijau Botol
-  if (total >= 2500) return { teks: "JURAGAN KAYA 💸", warna: "#2E7D32" };       // Hijau Duit
-  if (total >= 2000) return { teks: "JAWARA PRO 🦾", warna: "#37474F" };         // Abu Metalik
-  if (total >= 1500) return { teks: "PENDEKAR DUS ⚔️", warna: "#5D4037" };       // Cokelat Tua
-  if (total >= 1000) return { teks: "SPESIALIS RAKIT ✨", warna: "#00838F" };     // Teal
-  if (total >= 500)  return { teks: "PERAKIT AMBICIUS 🚀", warna: "#F9A825" };    // Kuning Mustard
-  return { teks: "WARGA RAJIN 🌱", warna: "#8BC34A" };                            // Hijau Muda
-};
 
   return (
     <div style={styles.container}>
@@ -203,6 +212,20 @@ const dapatkanGelar = (total) => {
               <div style={styles.numberStok}>{isInitialLoad ? "..." : stokManusia}</div>
             </div>
 
+            {/* --- CONTAINER LOG AKTIVITAS HARI INI --- */}
+            <div style={styles.logContainer}>
+              <div style={{fontSize: '0.65rem', fontWeight: 'bold', color: '#8B4513', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '5px'}}>
+                <span style={{display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#4CAF50', borderRadius: '50%'}}></span>
+                AKTIVITAS TERBARU
+              </div>
+              {logHariIni.length > 0 ? logHariIni.map((log) => (
+                <div key={log.id} style={styles.logItem}>
+                  <span><b>{log.nasabah?.nama}</b>: {log.rakit_gross} dus (Tab: {log.deposito_nett})</span>
+                  <span style={{fontSize: '0.55rem', opacity: 0.6}}>{new Date(log.tanggal).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})}</span>
+                </div>
+              )) : <div style={{fontSize: '0.7rem', color: '#A0522D', fontStyle: 'italic'}}>Belum ada setoran...</div>}
+            </div>
+
             <div style={styles.formContainer}>
               <form onSubmit={tambahSetoran} style={styles.form}>
                 <input style={styles.input} placeholder="Nama Penabung..." value={inputNama} onChange={(e) => setInputNama(e.target.value)} />
@@ -225,27 +248,21 @@ const dapatkanGelar = (total) => {
                   return b.deposito - a.deposito;
                 })
                 .map((orang, index) => {
-                  const gelar = dapatkanGelar(orang.rakitTotal); // Panggil fungsi gelar
-                  
+                  const gelar = dapatkanGelar(orang.rakitTotal, orang.deposito);
                   return (
                     <div key={orang.id} style={{...styles.labelNasabah, borderColor: index === 0 ? "#FFD700" : "#D2B48C"}}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                         <span style={{ fontSize: '1.5rem' }}>{index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "👤"}</span>
                         <div style={{ textAlign: 'left' }}>
                           <div style={{ fontWeight: 'bold', color: '#5D4037' }}>{orang.nama}</div>
-                          {/* TAMPILAN GELAR DI SINI */}
-                          <div style={{ fontSize: '0.65rem', fontWeight: '900', color: gelar.warna, letterSpacing: '1px' }}>
-                            {gelar.teks}
-                          </div>
+                          <div style={{ fontSize: '0.65rem', fontWeight: '900', color: gelar.warna }}>{gelar.teks}</div>
                           <span style={{ fontSize: '0.8rem', color: '#A0522D' }}>🔥 {orang.rakitTotal} Dus</span>
                         </div>
                       </div>
                       <div style={styles.badgeDeposito}>{orang.deposito}</div>
                     </div>
                   );
-                })
-              }
-              
+                })}
             </div>
           </motion.div>
         ) : (
@@ -287,14 +304,7 @@ const dapatkanGelar = (total) => {
           </motion.div>
         )}
       </AnimatePresence>
-      
-      {/* Tombol Refresh Manual (Sangat membantu kalo internet lemot) */}
-      <button 
-        onClick={() => fetchData()} 
-        style={{marginTop: '20px', fontSize: '0.7rem', color: '#8B4513', background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer'}}
-      >
-        Refresh Data Manual
-      </button>
+      <button onClick={() => fetchData()} style={styles.refreshBtn}>Refresh Data Manual</button>
     </div>
   )
 }
@@ -305,16 +315,19 @@ const styles = {
   tabContainer: { display: 'flex', gap: '10px', marginBottom: '20px', backgroundColor: '#EFEBE9', padding: '5px', borderRadius: '15px' },
   tab: { padding: '10px 20px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', transition: '0.3s' },
   fullWidth: { width: '100%', maxWidth: '500px' },
-  title: { fontSize: '2rem', color: '#8B4513', marginBottom: '20px', textAlign: 'center' },
-  cardStok: { backgroundColor: '#DEB887', padding: '20px', borderRadius: '25px', color: 'white', border: '4px solid #8B4513', textAlign: 'center' },
+  title: { fontSize: '2rem', color: '#8B4513', marginBottom: '10px', textAlign: 'center' },
+  cardStok: { backgroundColor: '#DEB887', padding: '15px', borderRadius: '25px', color: 'white', border: '4px solid #8B4513', textAlign: 'center' },
   numberStok: { fontSize: '3.5rem', fontWeight: '900' },
-  formContainer: { backgroundColor: '#FAEBD7', padding: '20px', borderRadius: '20px', marginTop: '20px', border: '3px dashed #8B4513' },
+  logContainer: { width: '100%', backgroundColor: 'rgba(255, 255, 255, 0.4)', padding: '10px', borderRadius: '15px', border: '1px solid #D2B48C', marginTop: '15px', boxSizing: 'border-box' },
+  logItem: { fontSize: '0.7rem', color: '#5D4037', display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px dashed #D2B48C' },
+  formContainer: { backgroundColor: '#FAEBD7', padding: '20px', borderRadius: '20px', marginTop: '15px', border: '3px dashed #8B4513' },
   form: { display: 'flex', flexDirection: 'column', gap: '10px' },
   input: { padding: '12px', borderRadius: '10px', border: '2px solid #D2B48C', fontSize: '1rem', width: '100%', boxSizing: 'border-box' },
   buttonSubmit: { padding: '15px', backgroundColor: '#8B4513', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' },
   leaderboardContainer: { marginTop: '30px' },
   labelNasabah: { padding: '12px', marginBottom: '8px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', border: '2px solid' },
-  badgeDeposito: { backgroundColor: '#6B8E23', color: 'white', padding: '5px 12px', borderRadius: '8px', fontWeight: 'bold' }
+  badgeDeposito: { backgroundColor: '#6B8E23', color: 'white', padding: '5px 12px', borderRadius: '8px', fontWeight: 'bold' },
+  refreshBtn: { marginTop: '20px', fontSize: '0.7rem', color: '#8B4513', background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer' }
 }
 
 export default App
