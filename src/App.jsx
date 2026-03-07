@@ -65,16 +65,18 @@ function App() {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
+      // Kita ambil data dari 24 jam terakhir saja biar aman dari perbedaan timezone
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
       const [nRes, lRes, bRes, logRes] = await Promise.all([
         supabase.from('nasabah').select(`id, nama, transaksi_gudang (rakit_gross, deposito_nett, colly)`),
         supabase.from('logistik_keluar').select('*').order('created_at', { ascending: false }),
         supabase.from('stok_bahan').select('jumlah_masuk'),
         supabase.from('transaksi_gudang')
           .select('id, rakit_gross, deposito_nett, tanggal, nasabah(nama)')
-          .gte('tanggal', today.toISOString())
-          .lt('tanggal', tomorrow.toISOString())
+          .gte('tanggal', twentyFourHoursAgo.toISOString()) // Ganti jadi 24 jam terakhir
           .order('tanggal', { ascending: false })
-          .limit(3) // Ambil 3 aktivitas terbaru hari ini
+          .limit(3) 
       ]);
 
       if (nRes.data) {
