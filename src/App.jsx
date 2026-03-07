@@ -245,12 +245,17 @@ function App() {
               </div>
               {logHariIni.length > 0 ? logHariIni.map((log) => (
                 <div key={log.id} style={styles.logItem}>
-                  <span><b>{log.nama_tampil}</b>: {log.rakit_gross || 0} dus</span>
-                  <span style={{fontSize: '0.55rem', opacity: 0.6}}>
+                  <span style={{ flex: 1 }}>
+                    <b>{log.nama_tampil}</b>: {log.rakit_gross || 0} Dus 
+                    <span style={{ color: '#2E7D32', fontWeight: 'bold', marginLeft: '5px' }}>
+                      (Tab: {log.deposito_nett || 0})
+                    </span>
+                  </span>
+                  <span style={{fontSize: '0.55rem', opacity: 0.6, marginLeft: '10px'}}>
                     {log.tanggal ? new Date(log.tanggal).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}) : '--:--'}
                   </span>
                 </div>
-              )) : <div style={{fontSize: '0.7rem', fontStyle: 'italic'}}>Belum ada setoran...</div>}
+              )) : <div style={{fontSize: '0.7rem', fontStyle: 'italic', color: '#A0522D'}}>Belum ada setoran...</div>}
             </div>
 
             <div style={styles.formContainer}>
