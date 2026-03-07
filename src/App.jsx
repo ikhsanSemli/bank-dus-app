@@ -163,7 +163,7 @@ function App() {
 
 const dapatkanGelar = (total) => {
   // Tambahkan di paling atas fungsi dapatkanGelar
-  if (total >= 5000 && deposito > 1000) return { teks: "PRESIDEN UNITED OF DUZZZ 🏛️", warna: "#1A237E" };
+  if (total >= 5000 && deposito > 1000) return { teks: "PRESIDENT UNITED OF DUZZZ 🏛️", warna: "#1A237E" };
   if (total >= 5000) return { teks: "DEWA KARDUS SEMESTA 🌌", warna: "#4A148C" }; // Ungu Deep
   if (total >= 4500) return { teks: "KAISAR DUS ABADI 👑", warna: "#B71C1C" };    // Merah Darah
   if (total >= 4000) return { teks: "SULTAN ELITE 💎", warna: "#0D47A1" };       // Biru Royal
