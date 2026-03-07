@@ -14,6 +14,34 @@ const quotes = [
   "Merakit dus adalah jalan ninja kita. 🥷"
 ];
 
+// --- KOMPONEN ANIMASI ANGKA (TIMBANGAN) ---
+function Counter({ value }) {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    let start = displayValue;
+    const end = parseInt(value) || 0;
+    if (start === end) return;
+
+    let totalDuration = 800; 
+    let frameDuration = 1000 / 60;
+    let totalFrames = Math.round(totalDuration / frameDuration);
+    let counter = 0;
+
+    const timer = setInterval(() => {
+      counter++;
+      const progress = counter / totalFrames;
+      const current = Math.round(start + (end - start) * (1 - Math.pow(1 - progress, 3)));
+      setDisplayValue(current);
+      if (counter === totalFrames) clearInterval(timer);
+    }, frameDuration);
+
+    return () => clearInterval(timer);
+  }, [value]);
+
+  return <span>{displayValue.toLocaleString('id-ID')}</span>;
+}
+
 function App() {
   // --- STATE UTAMA ---
   const [view, setView] = useState("banking");
@@ -57,7 +85,6 @@ function App() {
 
   const fetchData = useCallback(async (isSilent = false) => {
     if (!isSilent) setLoading(true);
-    
     try {
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
@@ -92,13 +119,9 @@ function App() {
         if (logRes.data) {
           const processedLogs = logRes.data.map(log => {
             const dataNasabah = formatted.find(n => n.id === log.nasabah_id);
-            return {
-              ...log,
-              nama_tampil: dataNasabah ? dataNasabah.nama : "Anonim"
-            };
+            return { ...log, nama_tampil: dataNasabah ? dataNasabah.nama : "Anonim" };
           });
           setLogHariIni(processedLogs);
-          console.log("Log Berhasil Diproses:", processedLogs);
         }
       }
       
@@ -106,12 +129,8 @@ function App() {
         setLogistikList(lRes.data);
         setStokKeluar(lRes.data.reduce((sum, l) => sum + l.jumlah_keluar, 0));
       }
-    } catch (err) {
-      console.error("Fetch error:", err);
-    } finally {
-      setLoading(false);
-      setIsInitialLoad(false);
-    }
+    } catch (err) { console.error("Fetch error:", err); } 
+    finally { setLoading(false); setIsInitialLoad(false); }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -123,7 +142,6 @@ function App() {
       controls.start({ x: [0, -10, 10, -10, 10, 0], transition: { duration: 0.4 } });
       return;
     }
-
     const collyNum = parseInt(inputColly);
     if (collyNum >= 50) return alert(`🚫 INPUT DITOLAK!\n\nIngat: 1 Colly = 200 Dus.`);
 
@@ -131,36 +149,22 @@ function App() {
       const namaClean = namaRaw.charAt(0).toUpperCase() + namaRaw.slice(1).toLowerCase();
       let { data: user } = await supabase.from('nasabah').select('id').ilike('nama', namaClean).maybeSingle();
       let userId = user?.id;
-
       if (!userId) {
         const { data: newUser } = await supabase.from('nasabah').insert([{ nama: namaClean }]).select().single();
         userId = newUser.id;
       }
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const { data: checkSetoran } = await supabase.from('transaksi_gudang')
-        .select('id').eq('nasabah_id', userId)
-        .gte('tanggal', today.toISOString()).lt('tanggal', tomorrow.toISOString());
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+      const { data: checkSetoran } = await supabase.from('transaksi_gudang').select('id').eq('nasabah_id', userId).gte('tanggal', today.toISOString()).lt('tanggal', tomorrow.toISOString());
 
       const isFirstSetoranToday = (checkSetoran || []).length === 0;
       const gross = collyNum * 200;
       let potongan = isFirstSetoranToday ? (inputShift === "Middle" ? 400 : 200) : 0;
       const nett = gross - potongan;
 
-      const { error } = await supabase.from('transaksi_gudang').insert([{
-        nasabah_id: userId, shift: inputShift, colly: collyNum,
-        rakit_gross: gross, deposito_nett: nett
-      }]);
-
+      const { error } = await supabase.from('transaksi_gudang').insert([{ nasabah_id: userId, shift: inputShift, colly: collyNum, rakit_gross: gross, deposito_nett: nett }]);
       if (error) throw error;
-      playSetor();
-      alert("✅ Setoran Berhasil!");
-      setInputNama(""); setInputColly(""); 
-      fetchData(true);
+      playSetor(); setInputNama(""); setInputColly(""); fetchData(true);
     } catch (err) { alert(err.message); }
   };
 
@@ -168,27 +172,19 @@ function App() {
     e.preventDefault();
     const supirRaw = supir.trim();
     if (!supirRaw || !jumlahKeluar) return alert("Isi nama supir & jumlah kantong!");
-    
     const supirClean = supirRaw.charAt(0).toUpperCase() + supirRaw.slice(1).toLowerCase();
     const totalDusKeluar = parseInt(jumlahKeluar) * 30;
-
     try {
-      const { error } = await supabase.from('logistik_keluar').insert([{
-        nama_supir: supirClean, shift: shiftSupir, 
-        jumlah_keluar: totalDusKeluar, keterangan: `${jumlahKeluar} Kantong`
-      }]);
+      const { error } = await supabase.from('logistik_keluar').insert([{ nama_supir: supirClean, shift: shiftSupir, jumlah_keluar: totalDusKeluar, keterangan: `${jumlahKeluar} Kantong` }]);
       if (error) throw error;
-      playTruk(); setSupir(""); setJumlahKeluar(""); 
-      fetchData(true);
+      playTruk(); setSupir(""); setJumlahKeluar(""); fetchData(true);
       alert(`🚛 TELOLET!! ${jumlahKeluar} Kantong Meluncur!`);
     } catch (err) { alert(err.message); }
   };
 
+  // --- LOGIKA KIAMAT DUS ---
   const sisaStokFisik = stokTotal - stokKeluar;
-  const rataRataPakai = 810;
-  const sisaHari = Math.floor(sisaStokFisik / rataRataPakai);
-  
-  // Tentukan status keamanan stok
+  const sisaHari = Math.floor(sisaStokFisik / 810);
   const statusKiamat = sisaStokFisik < 500 ? "KRITIS" : sisaStokFisik < 1500 ? "WASPADA" : "AMAN";
   const warnaKiamat = statusKiamat === "KRITIS" ? "#FF5252" : statusKiamat === "WASPADA" ? "#FFAB40" : "#69F0AE";
 
@@ -210,12 +206,12 @@ function App() {
             
             <div style={{...styles.cardStok, backgroundColor: '#FFF3E0', borderColor: '#FF9800', color: '#E65100', marginBottom: '15px'}}>
               <h2 style={{ margin: 0, fontSize: '0.7rem', opacity: 0.8 }}>SISA BAHAN (COLLY)</h2>
-              <div style={{...styles.numberStok, fontSize: '2.5rem'}}>{isInitialLoad ? "..." : stokBahanColly}</div>
+              <div style={{...styles.numberStok, fontSize: '2.5rem'}}>{isInitialLoad ? "..." : <Counter value={stokBahanColly} />}</div>
             </div>
 
             <div style={styles.cardStok}>
               <h2 style={{ margin: 0, fontSize: '0.7rem', opacity: 0.8 }}>TOTAL DEPOSITO NASABAH</h2>
-              <div style={styles.numberStok}>{isInitialLoad ? "..." : stokManusia}</div>
+              <div style={styles.numberStok}>{isInitialLoad ? "..." : <Counter value={stokManusia} />}</div>
             </div>
 
             <div style={styles.logContainer}>
@@ -225,14 +221,12 @@ function App() {
               </div>
               {logHariIni.length > 0 ? logHariIni.map((log) => (
                 <div key={log.id} style={styles.logItem}>
-                  <span>
-                    <b>{log.nama_tampil}</b>: {log.rakit_gross || 0} dus (Tab: {log.deposito_nett || 0})
-                  </span>
+                  <span><b>{log.nama_tampil}</b>: {log.rakit_gross || 0} dus</span>
                   <span style={{fontSize: '0.55rem', opacity: 0.6}}>
                     {log.tanggal ? new Date(log.tanggal).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}) : '--:--'}
                   </span>
                 </div>
-              )) : <div style={{fontSize: '0.7rem', color: '#A0522D', fontStyle: 'italic'}}>Belum ada setoran...</div>}
+              )) : <div style={{fontSize: '0.7rem', fontStyle: 'italic'}}>Belum ada setoran...</div>}
             </div>
 
             <div style={styles.formContainer}>
@@ -242,62 +236,44 @@ function App() {
                   <option value="1">Shift 1</option><option value="2">Shift 2</option><option value="Middle">Middle</option>
                 </select>
                 <input style={styles.input} type="number" placeholder="Jumlah Colly..." value={inputColly} onChange={(e) => setInputColly(e.target.value)} />
-                <motion.button animate={controls} style={styles.buttonSubmit} disabled={loading}>
-                   {loading ? "MEMPROSES..." : "SETOR SEKARANG 🚀"}
-                </motion.button>
+                <motion.button animate={controls} style={styles.buttonSubmit} disabled={loading}>{loading ? "MEMPROSES..." : "SETOR SEKARANG 🚀"}</motion.button>
               </form>
             </div>
 
             <div style={styles.leaderboardContainer}>
               <h3 style={{ textAlign: 'center', color: '#8B4513' }}>🏆 KASTA PERAKIT</h3>
-              {nasabah
-                .filter(orang => orang.nama !== "SISTEM")
-                .sort((a, b) => {
-                  if (b.rakitTotal !== a.rakitTotal) return b.rakitTotal - a.rakitTotal;
-                  return b.deposito - a.deposito;
-                })
-                .map((orang, index) => {
-                  const gelar = dapatkanGelar(orang.rakitTotal, orang.deposito);
-                  return (
-                    <div key={orang.id} style={{...styles.labelNasabah, borderColor: index === 0 ? "#FFD700" : "#D2B48C"}}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                        <span style={{ fontSize: '1.5rem' }}>{index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "👤"}</span>
-                        <div style={{ textAlign: 'left' }}>
-                          <div style={{ fontWeight: 'bold', color: '#5D4037' }}>{orang.nama}</div>
-                          <div style={{ fontSize: '0.65rem', fontWeight: '900', color: gelar.warna }}>{gelar.teks}</div>
-                          <span style={{ fontSize: '0.8rem', color: '#A0522D' }}>🔥 {orang.rakitTotal} Dus</span>
-                        </div>
+              {nasabah.filter(orang => orang.nama !== "SISTEM").sort((a, b) => b.rakitTotal - a.rakitTotal).map((orang, index) => {
+                const gelar = dapatkanGelar(orang.rakitTotal, orang.deposito);
+                return (
+                  <div key={orang.id} style={{...styles.labelNasabah, borderColor: index === 0 ? "#FFD700" : "#D2B48C"}}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                      <span style={{ fontSize: '1.5rem' }}>{index === 0 ? "🥇" : "👤"}</span>
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontWeight: 'bold' }}>{orang.nama}</div>
+                        <div style={{ fontSize: '0.6rem', fontWeight: '900', color: gelar.warna }}>{gelar.teks}</div>
+                        <span style={{ fontSize: '0.8rem', color: '#A0522D' }}>🔥 {orang.rakitTotal} Dus</span>
                       </div>
-                      <div style={styles.badgeDeposito}>{orang.deposito}</div>
                     </div>
-                  );
-                })}
+                    <div style={styles.badgeDeposito}>{orang.deposito}</div>
+                  </div>
+                );
+              })}
             </div>
           </motion.div>
         ) : (
           <motion.div key="log" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} style={styles.fullWidth}>
             <h1 style={{...styles.title, color: '#2E7D32'}}>🚛 LOGISTIK DUS</h1>
-
             <div style={{...styles.cardStok, backgroundColor: '#4CAF50', borderColor: '#2E7D32'}}>
               <h2 style={{ margin: 0, fontSize: '0.9rem', opacity: 0.8 }}>STOK FISIK REAL</h2>
-              <div style={styles.numberStok}>{isInitialLoad ? "..." : sisaStokFisik}</div>
-              
+              <div style={styles.numberStok}>{isInitialLoad ? "..." : <Counter value={sisaStokFisik} />}</div>
               {!isInitialLoad && (
                 <motion.div 
                   animate={statusKiamat === "KRITIS" ? { scale: [1, 1.05, 1] } : {}}
                   transition={{ repeat: Infinity, duration: 1 }}
-                  style={{
-                    marginTop: '15px', 
-                    padding: '10px', 
-                    backgroundColor: 'rgba(0,0,0,0.1)', 
-                    borderRadius: '15px', 
-                    border: `2px dashed ${warnaKiamat}`
-                  }}
+                  style={{marginTop: '15px', padding: '10px', backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: '15px', border: `2px dashed ${warnaKiamat}`}}
                 >
                   <div style={{fontSize: '0.7rem', color: 'white'}}>🕒 STATUS: {statusKiamat}</div>
-                  <div style={{fontSize: '1.2rem', fontWeight: '900', color: warnaKiamat}}>
-                    {sisaHari <= 0 ? "KIAMAT HARI INI!" : `${sisaHari} HARI LAGI`}
-                  </div>
+                  <div style={{fontSize: '1.2rem', fontWeight: '900', color: warnaKiamat}}>{sisaHari <= 0 ? "KIAMAT HARI INI!" : `${sisaHari} HARI LAGI`}</div>
                 </motion.div>
               )}
             </div>
@@ -306,20 +282,14 @@ function App() {
               <form onSubmit={tambahLogistik} style={styles.form}>
                 <input style={styles.input} placeholder="Nama Supir..." value={supir} onChange={(e) => setSupir(e.target.value)} />
                 <input style={styles.input} type="number" placeholder="Jumlah Kantong..." value={jumlahKeluar} onChange={(e) => setJumlahKeluar(e.target.value)} />
-                <button type="submit" style={{...styles.buttonSubmit, backgroundColor: '#2E7D32'}} disabled={loading}>
-                  {loading ? "MENGIRIM..." : "CATAT PENGIRIMAN 🚚"}
-                </button>
+                <button type="submit" style={{...styles.buttonSubmit, backgroundColor: '#2E7D32'}} disabled={loading}>CATAT PENGIRIMAN 🚚</button>
               </form>
             </div>
-
+            
             <div style={styles.leaderboardContainer}>
-              <h3 style={{textAlign: 'center', color: '#2E7D32'}}>📜 RIWAYAT PENGIRIMAN</h3>
-              {logistikList.map((log) => (
+               {logistikList.map((log) => (
                 <div key={log.id} style={{...styles.labelNasabah, borderColor: '#A5D6A7'}}>
-                  <div style={{textAlign: 'left'}}>
-                    <div style={{fontWeight: 'bold'}}>{log.nama_supir}</div>
-                    <div style={{fontSize: '0.7rem', color: 'gray'}}>{new Date(log.created_at).toLocaleString('id-ID')}</div>
-                  </div>
+                  <div style={{textAlign: 'left'}}><div style={{fontWeight: 'bold'}}>{log.nama_supir}</div><div style={{fontSize: '0.7rem'}}>{new Date(log.created_at).toLocaleString('id-ID')}</div></div>
                   <div style={{...styles.badgeDeposito, backgroundColor: '#C62828'}}>-{log.jumlah_keluar}</div>
                 </div>
               ))}
@@ -347,7 +317,7 @@ const styles = {
   form: { display: 'flex', flexDirection: 'column', gap: '10px' },
   input: { padding: '12px', borderRadius: '10px', border: '2px solid #D2B48C', fontSize: '1rem', width: '100%', boxSizing: 'border-box' },
   buttonSubmit: { padding: '15px', backgroundColor: '#8B4513', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' },
-  leaderboardContainer: { marginTop: '30px' },
+  leaderboardContainer: { marginTop: '30px', width: '100%' },
   labelNasabah: { padding: '12px', marginBottom: '8px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', border: '2px solid' },
   badgeDeposito: { backgroundColor: '#6B8E23', color: 'white', padding: '5px 12px', borderRadius: '8px', fontWeight: 'bold' },
   refreshBtn: { marginTop: '20px', fontSize: '0.7rem', color: '#8B4513', background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer' }
