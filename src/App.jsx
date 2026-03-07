@@ -23,7 +23,7 @@ function App() {
   const [stokKeluar, setStokKeluar] = useState(0);
   const [nasabah, setNasabah] = useState([]); 
   const [logistikList, setLogistikList] = useState([]);
-  const [logHariIni, setLogHariIni] = useState([]); // FITUR BARU: Log Aktivitas
+  const [logHariIni, setLogHariIni] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [randomQuote] = useState(quotes[Math.floor(Math.random() * quotes.length)]);
@@ -40,7 +40,6 @@ function App() {
   const [playSetor] = useSound(suaraSetor, { volume: 0.5 });
   const [playTruk] = useSound(suaraTruk, { volume: 0.7 });
 
-  // --- FUNGSI GELAR (FIXED) ---
   const dapatkanGelar = (total, tabungan) => {
     if (total >= 5000 && tabungan > 1000) return { teks: "PRESIDENT UNITED OF DUZZZ 🏛️", warna: "#1A237E" };
     if (total >= 5000) return { teks: "DEWA KARDUS SEMESTA 🌌", warna: "#4A148C" };
@@ -60,52 +59,53 @@ function App() {
     if (!isSilent) setLoading(true);
     
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      // Kita ambil data dari 24 jam terakhir saja biar aman dari perbedaan timezone
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
       const [nRes, lRes, bRes, logRes] = await Promise.all([
         supabase.from('nasabah').select(`id, nama, transaksi_gudang (rakit_gross, deposito_nett, colly)`),
         supabase.from('logistik_keluar').select('*').order('created_at', { ascending: false }),
         supabase.from('stok_bahan').select('jumlah_masuk'),
         supabase.from('transaksi_gudang')
-          .select('id, rakit_gross, deposito_nett, tanggal, nasabah(nama)')
-          .gte('tanggal', twentyFourHoursAgo.toISOString()) // Ganti jadi 24 jam terakhir
-          .order('tanggal', { ascending: false })
-          .limit(3) 
+          .select('id, rakit_gross, deposito_nett, nasabah_id, tanggal')
+          .gte('tanggal', twentyFourHoursAgo)
+          .order('id', { ascending: false })
+          .limit(3)
       ]);
 
       if (nRes.data) {
         const formatted = nRes.data.map(n => ({
           id: n.id,
           nama: n.nama,
-          rakitTotal: n.transaksi_gudang.reduce((sum, t) => sum + t.rakit_gross, 0),
-          deposito: n.transaksi_gudang.reduce((sum, t) => sum + t.deposito_nett, 0),
-          collyTotal: n.transaksi_gudang.reduce((sum, t) => sum + t.colly, 0)
+          rakitTotal: n.transaksi_gudang.reduce((sum, t) => sum + (t.rakit_gross || 0), 0),
+          deposito: n.transaksi_gudang.reduce((sum, t) => sum + (t.deposito_nett || 0), 0),
+          collyTotal: n.transaksi_gudang.reduce((sum, t) => sum + (t.colly || 0), 0)
         }));
 
-        const totalMurni = formatted.filter(n => n.nama !== "SISTEM").reduce((sum, n) => sum + n.deposito, 0);
-        const totalSemua = formatted.reduce((sum, n) => sum + n.rakitTotal, 0);
+        setNasabah(formatted);
+        setStokManusia(formatted.filter(n => n.nama !== "SISTEM").reduce((sum, n) => sum + n.deposito, 0)); 
+        setStokTotal(formatted.reduce((sum, n) => sum + n.rakitTotal, 0)); 
+        
         const totalCollyTerpakai = formatted.filter(n => n.nama !== "SISTEM").reduce((sum, n) => sum + n.collyTotal, 0);
         const totalBahanMasuk = bRes.data ? bRes.data.reduce((sum, b) => sum + b.jumlah_masuk, 0) : 0;
-
-        setNasabah(formatted);
-        setStokManusia(totalMurni); 
-        setStokTotal(totalSemua); 
         setStokBahanColly(totalBahanMasuk - totalCollyTerpakai);
+
+        if (logRes.data) {
+          const processedLogs = logRes.data.map(log => {
+            const dataNasabah = formatted.find(n => n.id === log.nasabah_id);
+            return {
+              ...log,
+              nama_tampil: dataNasabah ? dataNasabah.nama : "Anonim"
+            };
+          });
+          setLogHariIni(processedLogs);
+          console.log("Log Berhasil Diproses:", processedLogs);
+        }
       }
       
       if (lRes.data) {
         setLogistikList(lRes.data);
         setStokKeluar(lRes.data.reduce((sum, l) => sum + l.jumlah_keluar, 0));
       }
-
-      if (logRes) setLogHariIni(logRes);
-
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
@@ -119,8 +119,6 @@ function App() {
   const tambahSetoran = async (e) => {
     e.preventDefault();
     const namaRaw = inputNama.trim();
-    
-    // PERBAIKAN: Izinkan input 0 Colly
     if (!namaRaw || inputColly === "") {
       controls.start({ x: [0, -10, 10, -10, 10, 0], transition: { duration: 0.4 } });
       return;
@@ -214,7 +212,6 @@ function App() {
               <div style={styles.numberStok}>{isInitialLoad ? "..." : stokManusia}</div>
             </div>
 
-            {/* --- CONTAINER LOG AKTIVITAS HARI INI --- */}
             <div style={styles.logContainer}>
               <div style={{fontSize: '0.65rem', fontWeight: 'bold', color: '#8B4513', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '5px'}}>
                 <span style={{display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#4CAF50', borderRadius: '50%'}}></span>
@@ -222,8 +219,12 @@ function App() {
               </div>
               {logHariIni.length > 0 ? logHariIni.map((log) => (
                 <div key={log.id} style={styles.logItem}>
-                  <span><b>{log.nasabah?.nama}</b>: {log.rakit_gross} dus (Tab: {log.deposito_nett})</span>
-                  <span style={{fontSize: '0.55rem', opacity: 0.6}}>{new Date(log.tanggal).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})}</span>
+                  <span>
+                    <b>{log.nama_tampil}</b>: {log.rakit_gross || 0} dus (Tab: {log.deposito_nett || 0})
+                  </span>
+                  <span style={{fontSize: '0.55rem', opacity: 0.6}}>
+                    {log.tanggal ? new Date(log.tanggal).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}) : '--:--'}
+                  </span>
                 </div>
               )) : <div style={{fontSize: '0.7rem', color: '#A0522D', fontStyle: 'italic'}}>Belum ada setoran...</div>}
             </div>
