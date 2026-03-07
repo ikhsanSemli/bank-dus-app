@@ -185,6 +185,12 @@ function App() {
   };
 
   const sisaStokFisik = stokTotal - stokKeluar;
+  const rataRataPakai = 810;
+  const sisaHari = Math.floor(sisaStokFisik / rataRataPakai);
+  
+  // Tentukan status keamanan stok
+  const statusKiamat = sisaStokFisik < 500 ? "KRITIS" : sisaStokFisik < 1500 ? "WASPADA" : "AMAN";
+  const warnaKiamat = statusKiamat === "KRITIS" ? "#FF5252" : statusKiamat === "WASPADA" ? "#FFAB40" : "#69F0AE";
 
   return (
     <div style={styles.container}>
@@ -271,14 +277,28 @@ function App() {
         ) : (
           <motion.div key="log" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} style={styles.fullWidth}>
             <h1 style={{...styles.title, color: '#2E7D32'}}>🚛 LOGISTIK DUS</h1>
+
             <div style={{...styles.cardStok, backgroundColor: '#4CAF50', borderColor: '#2E7D32'}}>
               <h2 style={{ margin: 0, fontSize: '0.9rem', opacity: 0.8 }}>STOK FISIK REAL</h2>
               <div style={styles.numberStok}>{isInitialLoad ? "..." : sisaStokFisik}</div>
+              
               {!isInitialLoad && (
-                <div style={{marginTop: '15px', padding: '10px', backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: '15px', border: '1px dashed white'}}>
-                  <div style={{fontSize: '0.7rem'}}>🕒 ESTIMASI KIAMAT</div>
-                  <div style={{fontSize: '1.2rem', fontWeight: '900'}}>{Math.floor(sisaStokFisik / 810) <= 0 ? "HARI INI!" : `${Math.floor(sisaStokFisik / 810)} HARI LAGI`}</div>
-                </div>
+                <motion.div 
+                  animate={statusKiamat === "KRITIS" ? { scale: [1, 1.05, 1] } : {}}
+                  transition={{ repeat: Infinity, duration: 1 }}
+                  style={{
+                    marginTop: '15px', 
+                    padding: '10px', 
+                    backgroundColor: 'rgba(0,0,0,0.1)', 
+                    borderRadius: '15px', 
+                    border: `2px dashed ${warnaKiamat}`
+                  }}
+                >
+                  <div style={{fontSize: '0.7rem', color: 'white'}}>🕒 STATUS: {statusKiamat}</div>
+                  <div style={{fontSize: '1.2rem', fontWeight: '900', color: warnaKiamat}}>
+                    {sisaHari <= 0 ? "KIAMAT HARI INI!" : `${sisaHari} HARI LAGI`}
+                  </div>
+                </motion.div>
               )}
             </div>
 
