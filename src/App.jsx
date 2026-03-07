@@ -63,6 +63,7 @@ function App() {
   const [supir, setSupir] = useState("");
   const [jumlahKeluar, setJumlahKeluar] = useState("");
   const [shiftSupir, setShiftSupir] = useState("1");
+  const [inputBahan, setInputBahan] = useState(""); // State baru untuk input bahan masuk
 
   const controls = useAnimation();
   const [playSetor] = useSound(suaraSetor, { volume: 0.5 });
@@ -182,6 +183,29 @@ function App() {
     } catch (err) { alert(err.message); }
   };
 
+  const tambahBahan = async (e) => {
+    e.preventDefault();
+    if (!inputBahan || inputBahan <= 0) return alert("Isi jumlah Colly yang masuk!");
+    
+    try {
+      setLoading(true);
+      const { error } = await supabase.from('stok_bahan').insert([{ 
+        jumlah_masuk: parseInt(inputBahan),
+        keterangan: "Kiriman Baru" 
+      }]);
+      
+      if (error) throw error;
+      
+      alert(`✅ MANTAP! ${inputBahan} Colly ditambahkan ke Gudang.`);
+      setInputBahan("");
+      fetchData(true);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // --- LOGIKA KIAMAT DUS ---
   const sisaStokFisik = stokTotal - stokKeluar;
   const sisaHari = Math.floor(sisaStokFisik / 810);
@@ -286,6 +310,25 @@ function App() {
               </form>
             </div>
             
+            {/* FORM INPUT BAHAN MASUK (COLLY) */}
+            <div style={{...styles.formContainer, border: '3px dashed #1976D2', backgroundColor: '#E3F2FD', marginBottom: '15px'}}>
+              <h4 style={{margin: '0 0 10px 0', color: '#1976D2', fontSize: '0.8rem'}}>➕ TAMBAH BAHAN BAKU (COLLY)</h4>
+              <form onSubmit={tambahBahan} style={styles.form}>
+                <div style={{display: 'flex', gap: '10px'}}>
+                  <input 
+                    style={{...styles.input, flex: 2}} 
+                    type="number" 
+                    placeholder="Jumlah Colly Masuk..." 
+                    value={inputBahan} 
+                    onChange={(e) => setInputBahan(e.target.value)} 
+                  />
+                  <button type="submit" style={{...styles.buttonSubmit, backgroundColor: '#1976D2', flex: 1}} disabled={loading}>
+                    {loading ? "..." : "TERIMA ✅"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
             <div style={styles.leaderboardContainer}>
                {logistikList.map((log) => (
                 <div key={log.id} style={{...styles.labelNasabah, borderColor: '#A5D6A7'}}>
