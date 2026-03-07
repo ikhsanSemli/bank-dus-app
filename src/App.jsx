@@ -60,7 +60,7 @@ function App() {
         }));
 
         const totalMurni = formatted.filter(n => n.nama !== "SISTEM").reduce((sum, n) => sum + n.deposito, 0);
-        const totalSemua = formatted.reduce((sum, n) => sum + n.deposito, 0);
+        const totalSemua = formatted.reduce((sum, n) => sum + n.rakitTotal, 0);
         const totalCollyTerpakai = formatted.filter(n => n.nama !== "SISTEM").reduce((sum, n) => sum + n.collyTotal, 0);
         const totalBahanMasuk = bRes.data ? bRes.data.reduce((sum, b) => sum + b.jumlah_masuk, 0) : 0;
 
