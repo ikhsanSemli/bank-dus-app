@@ -68,16 +68,22 @@ function App() {
       // Kita ambil data dari 24 jam terakhir saja biar aman dari perbedaan timezone
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
+      // --- VERSI DEBUG (HAPUS FILTER WAKTU & JOIN NAMA) ---
       const [nRes, lRes, bRes, logRes] = await Promise.all([
         supabase.from('nasabah').select(`id, nama, transaksi_gudang (rakit_gross, deposito_nett, colly)`),
         supabase.from('logistik_keluar').select('*').order('created_at', { ascending: false }),
         supabase.from('stok_bahan').select('jumlah_masuk'),
+        
+        // Kita ambil 3 data paling baru dari tabel, titik. Ga pake filter macem-macem.
         supabase.from('transaksi_gudang')
-          .select('id, rakit_gross, deposito_nett, tanggal, nasabah(nama)')
-          .gte('tanggal', twentyFourHoursAgo.toISOString()) // Ganti jadi 24 jam terakhir
-          .order('tanggal', { ascending: false })
-          .limit(3) 
+          .select('id, rakit_gross, deposito_nett, nasabah_id') 
+          .order('id', { ascending: false }) 
+          .limit(3)
       ]);
+
+      // --- BARIS PENTING: Cek isi perut data di Console (F12) ---
+      console.log("Hasil Debug Log:", logRes.data);
+      if (logRes.error) console.error("Error Detail:", logRes.error);
 
       if (nRes.data) {
         const formatted = nRes.data.map(n => ({
