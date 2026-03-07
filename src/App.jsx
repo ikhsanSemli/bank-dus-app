@@ -271,25 +271,40 @@ function App() {
 
             <div style={styles.leaderboardContainer}>
               <h3 style={{ textAlign: 'center', color: '#8B4513' }}>🏆 KASTA PERAKIT</h3>
-              {nasabah.filter(orang => orang.nama !== "SISTEM").sort((a, b) => b.rakitTotal - a.rakitTotal).map((orang, index) => {
-                const gelar = dapatkanGelar(orang.rakitTotal, orang.deposito);
-                return (
-                  <div key={orang.id} style={{...styles.labelNasabah, borderColor: index === 0 ? "#FFD700" : index === 1 ? "#C0C0C0" : index === 2 ? "#CD7F32" : "#D2B48C"}}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                      {/* BALIKIN MEDALI 1, 2, DAN 3 */}
-                      <span style={{ fontSize: '1.5rem' }}>
-                        {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "👤"}
-                      </span>
-                      <div style={{ textAlign: 'left' }}>
-                        <div style={{ fontWeight: 'bold', color: '#5D4037' }}>{orang.nama}</div>
-                        <div style={{ fontSize: '0.65rem', fontWeight: '900', color: gelar.warna }}>{gelar.teks}</div>
-                        <span style={{ fontSize: '0.8rem', color: '#A0522D' }}>🔥 {orang.rakitTotal} Dus</span>
+              {nasabah
+                .filter(orang => orang.nama !== "SISTEM")
+                .sort((a, b) => {
+                  // 1. Cek dulu rakitan totalnya (siapa yang paling banyak rakit)
+                  if (b.rakitTotal !== a.rakitTotal) {
+                    return b.rakitTotal - a.rakitTotal;
+                  }
+                  // 2. Kalau rakitan sama (SERI), yang tabungannya lebih banyak yang menang
+                  return b.deposito - a.deposito;
+                })
+                .map((orang, index) => {
+                  const gelar = dapatkanGelar(orang.rakitTotal, orang.deposito);
+                  return (
+                    <div 
+                      key={orang.id} 
+                      style={{
+                        ...styles.labelNasabah, 
+                        borderColor: index === 0 ? "#FFD700" : index === 1 ? "#C0C0C0" : index === 2 ? "#CD7F32" : "#D2B48C"
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <span style={{ fontSize: '1.5rem' }}>
+                          {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "👤"}
+                        </span>
+                        <div style={{ textAlign: 'left' }}>
+                          <div style={{ fontWeight: 'bold', color: '#5D4037' }}>{orang.nama}</div>
+                          <div style={{ fontSize: '0.65rem', fontWeight: '900', color: gelar.warna }}>{gelar.teks}</div>
+                          <span style={{ fontSize: '0.8rem', color: '#A0522D' }}>🔥 {orang.rakitTotal} Dus</span>
+                        </div>
                       </div>
+                      <div style={styles.badgeDeposito}>{orang.deposito}</div>
                     </div>
-                    <div style={styles.badgeDeposito}>{orang.deposito}</div>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
           </motion.div>
         ) : (
