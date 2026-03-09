@@ -247,53 +247,44 @@ function App() {
               {logHariIni.length > 0 ? logHariIni.map((log) => (
                 <div key={log.id} style={{
                   ...styles.logItem, 
-                  flexDirection: 'column', 
-                  alignItems: 'stretch', // Isi penuh lebar kotak
-                  padding: '8px 10px',   // Beri napas kiri-kanan
-                  backgroundColor: 'rgba(255,255,255,0.3)', // Latar tipis biar rapi
-                  marginBottom: '5px', 
-                  borderRadius: '8px'
+                  flexDirection: 'row', 
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '12px 5px',   // Lebih tinggi biar gak sesak
+                  borderBottom: '1px solid rgba(139, 69, 19, 0.1)', // Garis sangat tipis
+                  backgroundColor: 'transparent' // Bersih tanpa kotak-kotak
                 }}>
                   
-                  {/* BARIS ATAS: NAMA & SHIFT */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#5D4037', flex: 1 }}>
-                      👤 {log.nama_tampil}
-                    </span>
-                    {/* Label Shift Rapi di Pojok Kanan */}
-                    <span style={{ 
-                      fontSize: '0.55rem', 
-                      backgroundColor: log.shift === "Middle" ? "#D84315" : "#8B4513", // Warna beda buat SMiddle
-                      color: 'white', 
-                      padding: '2px 8px', 
-                      borderRadius: '10px', // Bulat elips biar pro
-                      fontWeight: 'bold',
-                      marginLeft: '10px'
-                    }}>
-                      S{log.shift}
-                    </span>
+                  {/* SISI KIRI: NAMA & DATA UTAMA */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#3E2723' }}>
+                        {log.nama_tampil}
+                      </span>
+                      {/* Indikator Shift: Titik Kecil Warna Saja */}
+                      <span style={{ 
+                        width: '6px', height: '6px', borderRadius: '50%', 
+                        backgroundColor: log.shift === "Middle" ? "#FF5252" : "#4CAF50" 
+                      }} title={`Shift ${log.shift}`}></span>
+                    </div>
+                    
+                    <div style={{ fontSize: '0.65rem', color: '#8D6E63', letterSpacing: '0.3px' }}>
+                      {log.rakit_gross} Dus <span style={{ opacity: 0.5 }}>•</span> <span style={{ color: '#2E7D32', fontWeight: '600' }}>Tab {log.deposito_nett}</span>
+                    </div>
                   </div>
                   
-                  {/* BARIS BAWAH: DATA & WAKTU (Simetris Total) */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'end', fontSize: '0.65rem' }}>
-                    
-                    {/* Data Setoran (Kiri) */}
-                    <div style={{ color: '#5D4037', opacity: 0.9 }}>
-                      🔥 {log.rakit_gross || 0} Dus 
-                      <span style={{ color: '#2E7D32', fontWeight: 'bold', marginLeft: '6px' }}>
-                        (Tab: {log.deposito_nett || 0})
-                      </span>
-                    </div>
-                    
-                    {/* Waktu Singkat (Kanan - Sejajar Vertikal dengan Data) */}
-                    <div style={{ fontSize: '0.55rem', opacity: 0.6, textAlign: 'right', display: 'flex', gap: '6px' }}>
-                      <span>📅 {log.tanggal ? new Date(log.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) : '--'}</span>
-                      <span>⏰ {log.tanggal ? new Date(log.tanggal).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
-                    </div>
-                    
+                  {/* SISI KANAN: WAKTU & TANGGAL (STACKED) */}
+                  <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 'bold', color: '#3E2723', opacity: 0.8 }}>
+                      {log.tanggal ? new Date(log.tanggal).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                    </span>
+                    <span style={{ fontSize: '0.55rem', color: '#A1887F', textTransform: 'uppercase' }}>
+                      {log.tanggal ? new Date(log.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) : '--'}
+                    </span>
                   </div>
+
                 </div>
-              )) : <div style={{fontSize: '0.7rem', fontStyle: 'italic', color: '#A0522D', textAlign: 'center', padding: '10px'}}>Belum ada setoran...</div>}
+              )) : <div style={{fontSize: '0.7rem', opacity: 0.5, textAlign: 'center', padding: '20px'}}>Belum ada aktivitas...</div>}
 
             </div>
 
