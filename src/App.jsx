@@ -245,34 +245,55 @@ function App() {
               </div>
 
               {logHariIni.length > 0 ? logHariIni.map((log) => (
-              <div key={log.id} style={{...styles.logItem, flexDirection: 'column', alignItems: 'flex-start', padding: '8px 0'}}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '2px' }}>
-                  <span style={{ flex: 1, fontSize: '0.75rem' }}>
-                    <b>{log.nama_tampil}</b>: {log.rakit_gross || 0} Dus 
-                    <span style={{ color: '#2E7D32', fontWeight: 'bold', marginLeft: '5px' }}>
-                      (Tab: {log.deposito_nett || 0})
+                <div key={log.id} style={{
+                  ...styles.logItem, 
+                  flexDirection: 'column', 
+                  alignItems: 'stretch', // Isi penuh lebar kotak
+                  padding: '8px 10px',   // Beri napas kiri-kanan
+                  backgroundColor: 'rgba(255,255,255,0.3)', // Latar tipis biar rapi
+                  marginBottom: '5px', 
+                  borderRadius: '8px'
+                }}>
+                  
+                  {/* BARIS ATAS: NAMA & SHIFT */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#5D4037', flex: 1 }}>
+                      👤 {log.nama_tampil}
                     </span>
-                  </span>
-                  {/* Label Shift Kecil di Pojok Kanan Atas Nama */}
-                  <span style={{ 
-                    fontSize: '0.55rem', 
-                    backgroundColor: '#8B4513', 
-                    color: 'white', 
-                    padding: '2px 6px', 
-                    borderRadius: '4px',
-                    fontWeight: 'bold'
-                  }}>
-                    S{log.shift}
-                  </span>
+                    {/* Label Shift Rapi di Pojok Kanan */}
+                    <span style={{ 
+                      fontSize: '0.55rem', 
+                      backgroundColor: log.shift === "Middle" ? "#D84315" : "#8B4513", // Warna beda buat SMiddle
+                      color: 'white', 
+                      padding: '2px 8px', 
+                      borderRadius: '10px', // Bulat elips biar pro
+                      fontWeight: 'bold',
+                      marginLeft: '10px'
+                    }}>
+                      S{log.shift}
+                    </span>
+                  </div>
+                  
+                  {/* BARIS BAWAH: DATA & WAKTU (Simetris Total) */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'end', fontSize: '0.65rem' }}>
+                    
+                    {/* Data Setoran (Kiri) */}
+                    <div style={{ color: '#5D4037', opacity: 0.9 }}>
+                      🔥 {log.rakit_gross || 0} Dus 
+                      <span style={{ color: '#2E7D32', fontWeight: 'bold', marginLeft: '6px' }}>
+                        (Tab: {log.deposito_nett || 0})
+                      </span>
+                    </div>
+                    
+                    {/* Waktu Singkat (Kanan - Sejajar Vertikal dengan Data) */}
+                    <div style={{ fontSize: '0.55rem', opacity: 0.6, textAlign: 'right', display: 'flex', gap: '6px' }}>
+                      <span>📅 {log.tanggal ? new Date(log.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) : '--'}</span>
+                      <span>⏰ {log.tanggal ? new Date(log.tanggal).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
+                    </div>
+                    
+                  </div>
                 </div>
-                
-                {/* Baris Bawah: Tanggal & Jam */}
-                <div style={{ fontSize: '0.55rem', opacity: 0.6, display: 'flex', gap: '8px' }}>
-                  <span>📅 {log.tanggal ? new Date(log.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) : '--'}</span>
-                  <span>⏰ {log.tanggal ? new Date(log.tanggal).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
-                </div>
-              </div>
-            )) : <div style={{fontSize: '0.7rem', fontStyle: 'italic', color: '#A0522D'}}>Belum ada setoran...</div>}
+              )) : <div style={{fontSize: '0.7rem', fontStyle: 'italic', color: '#A0522D', textAlign: 'center', padding: '10px'}}>Belum ada setoran...</div>}
 
             </div>
 
