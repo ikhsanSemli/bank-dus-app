@@ -87,7 +87,7 @@ function App() {
   const fetchData = useCallback(async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     try {
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const twentyFourHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
 
       const [nRes, lRes, bRes, logRes] = await Promise.all([
         supabase.from('nasabah').select(`id, nama, transaksi_gudang (rakit_gross, deposito_nett, colly)`),
