@@ -94,7 +94,7 @@ function App() {
         supabase.from('logistik_keluar').select('*').order('created_at', { ascending: false }),
         supabase.from('stok_bahan').select('jumlah_masuk'),
         supabase.from('transaksi_gudang')
-          .select('id, rakit_gross, deposito_nett, nasabah_id, tanggal')
+          .select('id, rakit_gross, deposito_nett, nasabah_id, tanggal, shift')
           .gte('tanggal', twentyFourHoursAgo)
           .order('id', { ascending: false })
           .limit(4)
@@ -243,19 +243,37 @@ function App() {
                 <span style={{display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#4CAF50', borderRadius: '50%'}}></span>
                 AKTIVITAS TERBARU
               </div>
+
               {logHariIni.length > 0 ? logHariIni.map((log) => (
-                <div key={log.id} style={styles.logItem}>
-                  <span style={{ flex: 1 }}>
+              <div key={log.id} style={{...styles.logItem, flexDirection: 'column', alignItems: 'flex-start', padding: '8px 0'}}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '2px' }}>
+                  <span style={{ flex: 1, fontSize: '0.75rem' }}>
                     <b>{log.nama_tampil}</b>: {log.rakit_gross || 0} Dus 
                     <span style={{ color: '#2E7D32', fontWeight: 'bold', marginLeft: '5px' }}>
                       (Tab: {log.deposito_nett || 0})
                     </span>
                   </span>
-                  <span style={{fontSize: '0.55rem', opacity: 0.6, marginLeft: '10px'}}>
-                    {log.tanggal ? new Date(log.tanggal).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}) : '--:--'}
+                  {/* Label Shift Kecil di Pojok Kanan Atas Nama */}
+                  <span style={{ 
+                    fontSize: '0.55rem', 
+                    backgroundColor: '#8B4513', 
+                    color: 'white', 
+                    padding: '2px 6px', 
+                    borderRadius: '4px',
+                    fontWeight: 'bold'
+                  }}>
+                    S{log.shift}
                   </span>
                 </div>
-              )) : <div style={{fontSize: '0.7rem', fontStyle: 'italic', color: '#A0522D'}}>Belum ada setoran...</div>}
+                
+                {/* Baris Bawah: Tanggal & Jam */}
+                <div style={{ fontSize: '0.55rem', opacity: 0.6, display: 'flex', gap: '8px' }}>
+                  <span>📅 {log.tanggal ? new Date(log.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) : '--'}</span>
+                  <span>⏰ {log.tanggal ? new Date(log.tanggal).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
+                </div>
+              </div>
+            )) : <div style={{fontSize: '0.7rem', fontStyle: 'italic', color: '#A0522D'}}>Belum ada setoran...</div>}
+
             </div>
 
             <div style={styles.formContainer}>
