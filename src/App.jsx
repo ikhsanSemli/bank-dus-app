@@ -442,7 +442,7 @@ function App() {
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', borderBottom: '1px dashed rgba(255,255,255,0.3)', paddingBottom: '5px' }}>
                     <span style={{fontSize: '0.65rem', color: 'white', opacity: 0.8}}>ESTIMASI KELUAR</span>
-                    <span style={{fontSize: '0.65rem', color: 'white', fontWeight: 'bold'}}>810 Dus / Hari</span>
+                    <span style={{fontSize: '0.65rem', color: 'white', fontWeight: 'bold'}}>1000 Dus / Hari</span>
                   </div>
 
                   <div style={{fontSize: '0.7rem', color: 'white'}}>🕒 STATUS: {statusKiamat}</div>
