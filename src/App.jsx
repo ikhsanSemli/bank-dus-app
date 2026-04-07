@@ -72,17 +72,28 @@ function App() {
   const [playTruk] = useSound(suaraTruk, { volume: 0.7 });
 
   const dapatkanGelar = (total, tabungan) => {
-    if (total >= 5000 && tabungan > 1000) return { teks: "PRESIDENT UNITED OF DUZZZ 🏛️", warna: "#1A237E" };
-    if (total >= 5000) return { teks: "DEWA KARDUS SEMESTA 🌌", warna: "#4A148C" };
+  // --- KASTA DEWA (Diatas 5000) ---
+    if (total >= 10000) return { teks: "OVERLORD OF ETERNITY 👑🌌", warna: "#000000" }; // Hitam Legam
+    if (total >= 8000) return { teks: "OMEGA KARDUS SUPREME 💠", warna: "#01579B" }; // Biru Tua Deep
+    if (total >= 6500) return { teks: "COSMIC RAIDER ☄️", warna: "#4A148C" }; // Ungu Galaksi
+    
+    // --- KASTA ELITE ---
+    if (total >= 5000 && tabungan > 1500) return { teks: "PRESIDENT UNITED OF DUZZZ 🏛️", warna: "#1A237E" };
+    if (total >= 5000) return { teks: "DEWA KARDUS SEMESTA 🌌", warna: "#311B92" };
     if (total >= 4500) return { teks: "KAISAR DUS ABADI 👑", warna: "#B71C1C" };
     if (total >= 4000) return { teks: "SULTAN ELITE 💎", warna: "#0D47A1" };
+    
+    // --- KASTA PEJUANG ---
     if (total >= 3500) return { teks: "LEGEND RAKIT 🏆", warna: "#E65100" };
     if (total >= 3000) return { teks: "C.E.O Duzzz 🏰", warna: "#004D40" };
     if (total >= 2500) return { teks: "JURAGAN KAYA 💸", warna: "#2E7D32" };
     if (total >= 2000) return { teks: "JAWARA PRO 🦾", warna: "#37474F" };
+    
+    // --- KASTA PEMULA ---
     if (total >= 1500) return { teks: "PENDEKAR DUS ⚔️", warna: "#5D4037" };
     if (total >= 1000) return { teks: "SPESIALIS RAKIT ✨", warna: "#00838F" };
     if (total >= 500)  return { teks: "PERAKIT AMBICIUS 🚀", warna: "#F9A825" };
+    
     return { teks: "WARGA RAJIN 🌱", warna: "#8BC34A" };
   };
 
@@ -403,7 +414,11 @@ function App() {
                       key={orang.id} 
                       style={{
                         ...styles.labelNasabah, 
-                        borderColor: index === 0 ? "#FFD700" : index === 1 ? "#C0C0C0" : index === 2 ? "#CD7F32" : "#D2B48C"
+                        borderColor: index === 0 ? "#FFD700" : index === 1 ? "#C0C0C0" : index === 2 ? "#CD7F32" : "#D2B48C",
+                        backgroundColor: index === 0 ? "#FFFDF0" : "white", // Ranking 1 agak kuning emas dikit
+                        transform: index === 0 ? 'scale(1.02)' : 'scale(1)', // Ranking 1 sedikit lebih besar (efek menonjol)
+                        zIndex: index === 0 ? 2 : 1,
+                        boxShadow: index === 0 ? '0 4px 15px rgba(255, 215, 0, 0.3)' : 'none' // Efek cahaya emas buat juara 1
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -516,7 +531,19 @@ const styles = {
   input: { padding: '12px', borderRadius: '10px', border: '2px solid #D2B48C', fontSize: '1rem', width: '100%', boxSizing: 'border-box' },
   buttonSubmit: { padding: '15px', backgroundColor: '#8B4513', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' },
   leaderboardContainer: { marginTop: '30px', width: '100%' },
-  labelNasabah: { padding: '12px', marginBottom: '8px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', border: '2px solid' },
+
+  labelNasabah: { 
+    padding: '8px 12px', // Diperkecil dari 12px biar lebih ramping
+    marginBottom: '6px', // Gap antar nama lebih rapat
+    borderRadius: '12px', 
+    display: 'flex', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    backgroundColor: 'white', 
+    border: '2px solid',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.05)' // Tambah shadow tipis biar elegan
+  },                        
+
   badgeDeposito: { backgroundColor: '#6B8E23', color: 'white', padding: '5px 12px', borderRadius: '8px', fontWeight: 'bold' },
   refreshBtn: { marginTop: '20px', fontSize: '0.7rem', color: '#8B4513', background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer' }
 }
