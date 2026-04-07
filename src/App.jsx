@@ -185,7 +185,7 @@ function App() {
     // LOGIKA PCS & COLLY
     const gross = pcsNum; 
     const collyEquivalent = pcsNum / 200; // Konversi ke colly untuk potong stok bahan
-    let potongan = isFirstSetoranToday ? (inputShift === "Middle" ? 400 : 200) : 0;
+    let potongan = isFirstSetoranToday ? (inputShift === "Middle" ? 400 : 300) : 0;
     const nett = gross - potongan;
 
     const { error } = await supabase.from('transaksi_gudang').insert([{ 
@@ -333,17 +333,6 @@ function App() {
                 </div>
               )) : <div style={{fontSize: '0.7rem', opacity: 0.5, textAlign: 'center', padding: '20px'}}>Belum ada aktivitas...</div>}
 
-            </div>
-
-            <div style={styles.formContainer}>
-              <form onSubmit={tambahSetoran} style={styles.form}>
-                <input style={styles.input} placeholder="Nama Penabung..." value={inputNama} onChange={(e) => setInputNama(e.target.value)} />
-                <select style={styles.input} value={inputShift} onChange={(e) => setInputShift(e.target.value)}>
-                  <option value="1">Shift 1</option><option value="2">Shift 2</option><option value="Middle">Middle</option>
-                </select>
-                <input style={styles.input} type="number" placeholder="Jumlah Colly..." value={inputColly} onChange={(e) => setInputColly(e.target.value)} />
-                <motion.button animate={controls} style={styles.buttonSubmit} disabled={loading}>{loading ? "MEMPROSES..." : "SETOR SEKARANG 🚀"}</motion.button>
-              </form>
             </div>
 
             <div style={styles.formContainer}>
