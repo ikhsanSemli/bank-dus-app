@@ -58,6 +58,8 @@ function App() {
 
   // --- STATE INPUT ---
   const [inputNama, setInputNama] = useState("");
+  const [inputPcs, setInputPcs] = useState(""); // Berubah dari inputColly
+  const [isSubmitting, setIsSubmitting] = useState(false); // State khusus untuk cegah double input
   const [inputColly, setInputColly] = useState("");
   const [inputShift, setInputShift] = useState("1");
   const [supir, setSupir] = useState("");
@@ -137,37 +139,82 @@ function App() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const tambahSetoran = async (e) => {
-    e.preventDefault();
-    const namaRaw = inputNama.trim();
-    if (!namaRaw || inputColly === "") {
-      controls.start({ x: [0, -10, 10, -10, 10, 0], transition: { duration: 0.4 } });
-      return;
+  e.preventDefault();
+  
+  // 1. CEK DOUBLE INPUT (ANTI SPAM)
+  if (isSubmitting || loading) return;
+
+  const namaRaw = inputNama.trim();
+  const pcsNum = parseInt(inputPcs);
+
+  // 2. VALIDASI INPUT
+  if (!namaRaw || !inputPcs) {
+    controls.start({ x: [0, -10, 10, -10, 10, 0], transition: { duration: 0.4 } });
+    return;
+  }
+
+  // Pagar agar tidak salah input (Misal batas maksimal sekali setor 2000 pcs / 10 colly)
+  if (pcsNum > 2000) {
+    return alert(`🚫 INPUT TERLALU BANYAK!\n\nSekali setor maksimal 2000 Pcs.\nJika memang lebih, bagi jadi 2x input.`);
+  }
+
+  if (pcsNum < 10) {
+    return alert(`🚫 INPUT TERLALU SEDIKIT!\n\nMinimal setor adalah 10 Pcs.`);
+  }
+
+  try {
+    setIsSubmitting(true); // Kunci tombol segera
+    setLoading(true);
+
+    const namaClean = namaRaw.charAt(0).toUpperCase() + namaRaw.slice(1).toLowerCase();
+    
+    // Cari atau buat Nasabah
+    let { data: user } = await supabase.from('nasabah').select('id').ilike('nama', namaClean).maybeSingle();
+    let userId = user?.id;
+    if (!userId) {
+      const { data: newUser } = await supabase.from('nasabah').insert([{ nama: namaClean }]).select().single();
+      userId = newUser.id;
     }
-    const collyNum = parseInt(inputColly);
-    if (collyNum >= 50) return alert(`🚫 INPUT DITOLAK!\n\nIngat: 1 Colly = 200 Dus.`);
 
-    try {
-      const namaClean = namaRaw.charAt(0).toUpperCase() + namaRaw.slice(1).toLowerCase();
-      let { data: user } = await supabase.from('nasabah').select('id').ilike('nama', namaClean).maybeSingle();
-      let userId = user?.id;
-      if (!userId) {
-        const { data: newUser } = await supabase.from('nasabah').insert([{ nama: namaClean }]).select().single();
-        userId = newUser.id;
-      }
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-      const { data: checkSetoran } = await supabase.from('transaksi_gudang').select('id').eq('nasabah_id', userId).gte('tanggal', today.toISOString()).lt('tanggal', tomorrow.toISOString());
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+    const { data: checkSetoran } = await supabase.from('transaksi_gudang').select('id').eq('nasabah_id', userId).gte('tanggal', today.toISOString()).lt('tanggal', tomorrow.toISOString());
 
-      const isFirstSetoranToday = (checkSetoran || []).length === 0;
-      const gross = collyNum * 200;
-      let potongan = isFirstSetoranToday ? (inputShift === "Middle" ? 400 : 200) : 0;
-      const nett = gross - potongan;
+    const isFirstSetoranToday = (checkSetoran || []).length === 0;
+    
+    // LOGIKA PCS & COLLY
+    const gross = pcsNum; 
+    const collyEquivalent = pcsNum / 200; // Konversi ke colly untuk potong stok bahan
+    let potongan = isFirstSetoranToday ? (inputShift === "Middle" ? 400 : 200) : 0;
+    const nett = gross - potongan;
 
-      const { error } = await supabase.from('transaksi_gudang').insert([{ nasabah_id: userId, shift: inputShift, colly: collyNum, rakit_gross: gross, deposito_nett: nett }]);
-      if (error) throw error;
-      playSetor(); setInputNama(""); setInputColly(""); fetchData(true);
-    } catch (err) { alert(err.message); }
-  };
+    const { error } = await supabase.from('transaksi_gudang').insert([{ 
+      nasabah_id: userId, 
+      shift: inputShift, 
+      colly: collyEquivalent, // Simpan nilai colly (desimal tidak apa-apa)
+      rakit_gross: gross, 
+      deposito_nett: nett 
+    }]);
+
+    if (error) throw error;
+
+    playSetor(); 
+    setInputNama(""); 
+    setInputPcs(""); 
+    fetchData(true);
+    
+    // Beri jeda 3 detik sebelum tombol bisa diklik lagi (Anti-Spam)
+    setTimeout(() => {
+      setIsSubmitting(false);
+    }, 3000);
+
+  } catch (err) { 
+    alert(err.message); 
+    setIsSubmitting(false);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const tambahLogistik = async (e) => {
     e.preventDefault();
@@ -296,6 +343,55 @@ function App() {
                 </select>
                 <input style={styles.input} type="number" placeholder="Jumlah Colly..." value={inputColly} onChange={(e) => setInputColly(e.target.value)} />
                 <motion.button animate={controls} style={styles.buttonSubmit} disabled={loading}>{loading ? "MEMPROSES..." : "SETOR SEKARANG 🚀"}</motion.button>
+              </form>
+            </div>
+
+            <div style={styles.formContainer}>
+              <form onSubmit={tambahSetoran} style={styles.form}>
+                <input 
+                  style={styles.input} 
+                  placeholder="Nama Penabung..." 
+                  value={inputNama} 
+                  onChange={(e) => setInputNama(e.target.value)} 
+                />
+                <select style={styles.input} value={inputShift} onChange={(e) => setInputShift(e.target.value)}>
+                  <option value="1">Shift 1</option>
+                  <option value="2">Shift 2</option>
+                  <option value="Middle">Middle</option>
+                </select>
+                
+                {/* Input diganti ke PCS dengan keterangan tambahan */}
+                <div style={{ position: 'relative' }}>
+                  <input 
+                    style={styles.input} 
+                    type="number" 
+                    placeholder="Jumlah Dus (Pcs)..." 
+                    value={inputPcs} 
+                    onChange={(e) => setInputPcs(e.target.value)} 
+                  />
+                  <span style={{ 
+                    position: 'absolute', right: '15px', top: '12px', 
+                    fontSize: '0.7rem', color: '#8B4513', fontWeight: 'bold', opacity: 0.6 
+                  }}>
+                    PCS
+                  </span>
+                </div>
+
+                <motion.button 
+                  animate={controls} 
+                  style={{
+                    ...styles.buttonSubmit,
+                    backgroundColor: (isSubmitting || loading) ? '#A9A9A9' : '#8B4513',
+                    cursor: (isSubmitting || loading) ? 'not-allowed' : 'pointer'
+                  }} 
+                  disabled={isSubmitting || loading}
+                >
+                  {loading ? "MENYIMPAN DATA..." : isSubmitting ? "TUNGGU SEBENTAR..." : "SETOR SEKARANG 🚀"}
+                </motion.button>
+                
+                <p style={{ fontSize: '0.55rem', color: '#8B4513', textAlign: 'center', marginTop: '-5px' }}>
+                  *1 Colly = 200 Pcs. Masukkan satuan Pcs (Contoh: 300)
+                </p>
               </form>
             </div>
 
