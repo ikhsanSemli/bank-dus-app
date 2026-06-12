@@ -196,7 +196,7 @@ function App() {
     // LOGIKA PCS & COLLY
     const gross = pcsNum; 
     const collyEquivalent = pcsNum / 200; // Konversi ke colly untuk potong stok bahan
-    let potongan = isFirstSetoranToday ? (inputShift === "Middle" ? 400 : 300) : 0;
+    let potongan = isFirstSetoranToday ? (inputShift === "Middle" ? 500 : 350) : 0;
     const nett = gross - potongan;
 
     const { error } = await supabase.from('transaksi_gudang').insert([{ 
